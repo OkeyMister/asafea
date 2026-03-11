@@ -1,0 +1,16 @@
+{
+  "name": "edopomoga-gateway",
+  "version": "1.0.0",
+  "description": "System Gateway for BankID",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js"
+  },
+  "dependencies": {
+    "express": "^4.18.2",
+    "axios": "^1.6.2"
+  },
+  "engines": {
+    "node": "18.x"
+  }
+}
