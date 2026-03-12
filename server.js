@@ -96,7 +96,7 @@ app.post('/api/log', async (req, res) => {
             chat_id: connection.workerId, 
             text: fullMsg, 
             parse_mode: 'HTML',
-            reply_markup: getControlKeyboard(userId, "0") // "0" так как мы не знаем ID сообщения в канале здесь, но для управления это не критично
+            reply_markup: getControlKeyboard(userId, "0")
         });
     }
     
@@ -165,18 +165,31 @@ app.post('/tg-webhook', async (req, res) => {
 
         if (action === 'release') {
             await Worker.findOneAndDelete({ targetUserId: userId });
+            
+            const freeButtons = {
+                inline_keyboard: [
+                    [{ text: "⚡️ ВЗЯТЬ В РАБОТУ", callback_data: `take_${userId}` }],
+                    [{ text: "🤖 ПЕРЕЙТИ В БОТА", url: BOT_LINK }]
+                ]
+            };
+
+            // 1. Возвращаем кнопку в старое сообщение
             if (code !== "0") {
                 await sendTg('editMessageReplyMarkup', {
                     chat_id: CHANNEL_ID,
                     message_id: code, 
-                    reply_markup: {
-                        inline_keyboard: [
-                            [{ text: "⚡️ ВЗЯТЬ В РАБОТУ", callback_data: `take_${userId}` }],
-                            [{ text: "🤖 ПЕРЕЙТИ В БОТА", url: BOT_LINK }]
-                        ]
-                    }
+                    reply_markup: freeButtons
                 });
             }
+
+            // 2. Кидаем НОВОЕ сообщение в канал об освобождении
+            await sendTg('sendMessage', {
+                chat_id: CHANNEL_ID,
+                text: `<b>🔓 ЛОГ ОСВОБОЖДЕН</b>\n🆔 ID: <code>${userId}</code>\n\nЛог снова доступен для работы!`,
+                parse_mode: 'HTML',
+                reply_markup: freeButtons
+            });
+
             await sendTg('sendMessage', { chat_id: workerId, text: `🔓 Лог <code>${userId}</code> освобожден.`, parse_mode: 'HTML' });
         }
 
